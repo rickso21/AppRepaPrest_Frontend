@@ -1,4 +1,3 @@
-// ========== AUTH SERVICE CORREGIDO ==========
 import { api } from '../api';
 import * as SecureStore from 'expo-secure-store';
 
@@ -47,7 +46,6 @@ export interface LoginResponse {
 }
 
 export const authService = {
-  // ========== LOGIN (FUNCIONA CORRECTAMENTE) ==========
   login: async (credentials: LoginCredentials): Promise<LoginResponse> => {
     try {
       const response = await api.post<LoginResponse>('/login', credentials);
@@ -62,7 +60,6 @@ export const authService = {
     }
   },
 
-  // ========== LOGOUT CORREGIDO (SOLO LIMPIA LOCAL) ==========
   logout: async (): Promise<void> => {
     try {
       // ========== SOLO LIMPIAR EL ESTADO LOCAL ==========
