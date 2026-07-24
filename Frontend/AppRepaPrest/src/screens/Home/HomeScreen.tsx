@@ -1372,6 +1372,8 @@ const desactivarPanicoDirecto = useCallback(async () => {
 }
 
 // ========== ESTILOS ==========
+
+//comentarios
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0F0F17' },
   mapWrapper: {
