@@ -1,6 +1,6 @@
 export const API_CONFIG = {
   // Para emulador Android
-  baseURL: 'http://192.168.1.12:8081',
+  baseURL: 'http://192.168.1.20:8081',
   
   // Para emulador iOS (descomenta esta línea)
   // baseURL: 'http://localhost:8000/api',
