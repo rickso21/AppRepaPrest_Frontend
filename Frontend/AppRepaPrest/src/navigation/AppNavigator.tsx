@@ -9,6 +9,9 @@ import Home from '../screens/Home/Home';
 import Register from '../screens/Register/Register';
 import ForgotPassword from '../screens/ForgotPassword/ForgotPassword';
 import ResetPassword from '../screens/ResetPassword/ResetPassword';
+import SolicitudPrestamo from '../screens/Prestamos/SolicitudPrestamo/SolicitudPrestamo';
+import Cargando from '../screens/Prestamos/Cargando/Cargando';
+import MontoAprobado from '../screens/Prestamos/MontoAprobado/MontoAprobado';
 
 export type RootStackParamList = {
   Welcome: undefined;
@@ -16,12 +19,50 @@ export type RootStackParamList = {
   Register: undefined;
   ForgotPassword: undefined;
   ResetPassword: { email: string };
+
+
   Home: {
     userId?: string;    
-    userName?: string;
-    userEmail?: string;
-    userPhone?: string;
-  } | undefined;};
+    nombre?: string;
+    apellidoPaterno?: string;
+    apellidoMaterno?: string;
+    email?: string;
+    direccion?: string;
+    curp?: string;
+    telefono?: string;
+  } | undefined;
+    montoAprobado?: number; 
+
+
+
+  SolicitudPrestamo: {
+    userId: string;
+    userName: string;
+    montoPreaprobado: number;
+  };
+
+  Cargando: {
+    userId: string;
+    nombre: string;
+    apellidoPaterno: string;
+    apellidoMaterno: string;
+    email: string;
+    telefono: string;
+    direccion: string;
+    curp: string;
+  };
+
+  MontoAprobado: {
+    userId: string;
+    nombre: string;
+    montoAprobado: number;
+  };
+
+  
+
+};
+
+  
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -67,6 +108,34 @@ export default function AppNavigator(): JSX.Element {
         <Stack.Screen 
           name="Home" 
           component={Home}
+          options={{
+            animationTypeForReplace: 'push',
+            animation: 'slide_from_right',
+          }}
+        />
+
+
+        <Stack.Screen 
+          name="SolicitudPrestamo" 
+          component={SolicitudPrestamo}
+          options={{
+            animationTypeForReplace: 'push',
+            animation: 'slide_from_right',
+          }}
+        />
+
+         <Stack.Screen 
+          name="Cargando" 
+          component={Cargando}
+          options={{
+            animationTypeForReplace: 'push',
+            animation: 'slide_from_right',
+          }}
+        />
+
+        <Stack.Screen 
+          name="MontoAprobado" 
+          component={MontoAprobado}
           options={{
             animationTypeForReplace: 'push',
             animation: 'slide_from_right',

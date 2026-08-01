@@ -23,7 +23,8 @@ export type HomeTabParamList = {
 
 const Tab = createBottomTabNavigator<HomeTabParamList>();
 
-const DISABLED_TABS = ["Prestamos", "Comunidad"];
+// Ya no necesitamos DISABLED_TABS porque vamos a habilitar la navegación
+// const DISABLED_TABS = ["Prestamos", "Comunidad"];
 
 export default function HomeTabs({ route }: Props): JSX.Element {
   const insets = useSafeAreaInsets();
@@ -65,11 +66,30 @@ export default function HomeTabs({ route }: Props): JSX.Element {
     );
   };
 
+  // Función para validar si el usuario tiene acceso a Préstamos
+  const validatePrestamosAccess = () => {
+    // Aquí puedes agregar tu lógica de validación
+    // Por ejemplo, verificar si el usuario tiene permisos, está verificado, etc.
+    
+    // Ejemplo de validación (reemplazar con tu lógica real)
+    const hasAccess = true; // Cambiar según tu lógica de negocio
+    
+    if (!hasAccess) {
+      Alert.alert(
+        "Acceso Denegado",
+        "No tienes permisos para acceder a la sección de Préstamos",
+        [{ text: "OK" }]
+      );
+      return false;
+    }
+    
+    return true;
+  };
+
   return (
     <Tab.Navigator
       initialRouteName="Home"
       screenOptions={({ route: tabRoute }) => {
-        const isDisabled = DISABLED_TABS.includes(tabRoute.name);
         const isLogout = tabRoute.name === "Salir";
 
         return {
@@ -77,9 +97,7 @@ export default function HomeTabs({ route }: Props): JSX.Element {
           tabBarActiveTintColor: isLogout ? "#EF4444" : "#FF6B35",
           tabBarInactiveTintColor: isLogout
             ? "#EF4444"
-            : isDisabled
-              ? "#3A3A45"
-              : "#6B7280",
+            : "#6B7280", // Eliminamos el color gris para tabs deshabilitados
           tabBarStyle: {
             backgroundColor: "#16161F",
             borderTopWidth: 1,
@@ -133,9 +151,19 @@ export default function HomeTabs({ route }: Props): JSX.Element {
         component={Prestamos}
         initialParams={{ userId, userName }}
         options={{ tabBarLabel: "Préstamos" }}
-        listeners={{
-          tabPress: (e) => e.preventDefault(),
-        }}
+        listeners={({ navigation: tabNavigation }) => ({
+          tabPress: (e) => {
+            // Validar acceso antes de navegar
+            if (!validatePrestamosAccess()) {
+              e.preventDefault(); // Prevenir navegación si no tiene acceso
+              return;
+            }
+            
+            // Si tiene acceso, permitir la navegación normalmente
+            // No llamamos a e.preventDefault() para permitir la navegación
+            console.log("Navegando a Préstamos con params:", { userId, userName });
+          },
+        })}
       />
 
       <Tab.Screen
@@ -143,14 +171,18 @@ export default function HomeTabs({ route }: Props): JSX.Element {
         component={Comunidad}
         initialParams={{ userId, userName }}
         options={{ tabBarLabel: "Comunidad" }}
-        listeners={{
-          tabPress: (e) => e.preventDefault(),
-        }}
+        listeners={({ navigation: tabNavigation }) => ({
+          tabPress: (e) => {
+            // Validar acceso a Comunidad si es necesario
+            // Por ahora, permitimos la navegación
+            console.log("Navegando a Comunidad con params:", { userId, userName });
+          },
+        })}
       />
 
       <Tab.Screen
-        name={"Salir" as any}
-        component={Comunidad}
+        name="Salir"
+        component={Comunidad} // Este componente no se usa realmente porque interceptamos el tabPress
         options={{
           tabBarLabel: "Salir",
           tabBarIcon: ({ size }: any) => (
@@ -159,7 +191,7 @@ export default function HomeTabs({ route }: Props): JSX.Element {
         }}
         listeners={{
           tabPress: (e: any) => {
-            e.preventDefault();
+            e.preventDefault(); // Siempre prevenir la navegación para el logout
             handleLogout();
           },
         }}

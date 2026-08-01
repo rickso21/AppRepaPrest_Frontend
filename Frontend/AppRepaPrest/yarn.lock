@@ -2639,6 +2639,7 @@ __metadata:
     expo-audio: "npm:~1.1.1"
     expo-av: "npm:~16.0.8"
     expo-build-properties: "npm:^57.0.3"
+    expo-linear-gradient: "npm:^57.0.1"
     expo-location: "npm:~19.0.8"
     expo-secure-store: "npm:~15.0.8"
     expo-speech: "npm:~14.0.8"
@@ -3848,6 +3849,17 @@ __metadata:
     expo: "*"
     react: "*"
   checksum: 10c0/23064b18285498e70be0aa525dc875cc809fc723b9a101d51e4721a09b1460eb041c73ebeb6d51e9175bb4c9b7a668bc08a48b99ebddac4cfaadb5a47194d329
+  languageName: node
+  linkType: hard
+
+"expo-linear-gradient@npm:^57.0.1":
+  version: 57.0.1
+  resolution: "expo-linear-gradient@npm:57.0.1"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/d52735f8d1e28142525032361a7881dd77455fe402941f5b35007f4f7c6bf6f3fe675b07e6499d3c52e10cf87c7a496405fb6353974f6575939e2beb02fed6ae
   languageName: node
   linkType: hard
 
