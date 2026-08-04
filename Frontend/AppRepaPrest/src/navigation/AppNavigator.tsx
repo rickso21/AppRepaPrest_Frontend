@@ -12,6 +12,7 @@ import ResetPassword from '../screens/ResetPassword/ResetPassword';
 import SolicitudPrestamo from '../screens/Prestamos/SolicitudPrestamo/SolicitudPrestamo';
 import Cargando from '../screens/Prestamos/Cargando/Cargando';
 import MontoAprobado from '../screens/Prestamos/MontoAprobado/MontoAprobado';
+import PrestamoActivo from '../screens/Prestamos/PrestamoActivo/PrestamoActivo';
 
 export type RootStackParamList = {
   Welcome: undefined;
@@ -58,6 +59,21 @@ export type RootStackParamList = {
     montoAprobado: number;
   };
 
+  PrestamoActivo: {
+    userId: string;
+    nombre: string;
+    prestamoData: {
+      id: string;
+      montoSolicitado: number;
+      montoTotal: number;
+      cuotaQuincenal: number;
+      quincenas: number;
+      fechaSolicitud: string;
+      fechaProximoPago: string;
+      quincenasRestantes: number;
+      progreso: number;
+    };
+  };
   
 
 };
@@ -140,6 +156,13 @@ export default function AppNavigator(): JSX.Element {
             animationTypeForReplace: 'push',
             animation: 'slide_from_right',
           }}
+        />
+
+        <Stack.Screen 
+          name="PrestamoActivo" 
+          component={PrestamoActivo}
+          options={{ headerShown: false }}
+
         />
       </Stack.Navigator>
     </NavigationContainer>
