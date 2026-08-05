@@ -23,7 +23,7 @@ export type HomeTabParamList = {
 
 const Tab = createBottomTabNavigator<HomeTabParamList>();
 
-const DISABLED_TABS = ["Prestamos", "Comunidad"];
+const DISABLED_TABS = ["Prestamos"];
 
 export default function HomeTabs({ route }: Props): JSX.Element {
   const insets = useSafeAreaInsets();
@@ -143,9 +143,6 @@ export default function HomeTabs({ route }: Props): JSX.Element {
         component={Comunidad}
         initialParams={{ userId, userName }}
         options={{ tabBarLabel: "Comunidad" }}
-        listeners={{
-          tabPress: (e) => e.preventDefault(),
-        }}
       />
 
       <Tab.Screen

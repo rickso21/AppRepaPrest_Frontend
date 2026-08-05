@@ -53,7 +53,7 @@ export default function LoginScreen({ navigation }: Props): JSX.Element {
   const onPressOut = () =>
     Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true }).start();
 
-
+/*
 const handleLogin = async (): Promise<void> => {
   if (!email.trim() || !password.trim()) {
     Alert.alert('Error', 'Por favor completa todos los campos');
@@ -103,9 +103,9 @@ const handleLogin = async (): Promise<void> => {
     setLoading(false);
   }
 };
+*/
 
-
-  /*
+  
   const handleLogin = (): void => {
     if (!email.trim() || !password.trim()) {
       Alert.alert('Error', 'Por favor completa todos los campos');
@@ -133,7 +133,7 @@ const handleLogin = async (): Promise<void> => {
       });
     }, 1500);
   };
-  */
+  
 
   return (
     <ImageBackground source={backgroundImage} style={styles.background} resizeMode="cover">

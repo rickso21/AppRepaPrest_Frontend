@@ -9,9 +9,11 @@ import Home from '../screens/Home/Home';
 import Register from '../screens/Register/Register';
 import ForgotPassword from '../screens/ForgotPassword/ForgotPassword';
 import ResetPassword from '../screens/ResetPassword/ResetPassword';
+import ChatScreen from '../screens/Comunidad/ChatScreen';
 
 export type RootStackParamList = {
   Welcome: undefined;
+  ChatScreen: undefined;
   Login: undefined;
   Register: undefined;
   ForgotPassword: undefined;
@@ -71,7 +73,10 @@ export default function AppNavigator(): JSX.Element {
             animationTypeForReplace: 'push',
             animation: 'slide_from_right',
           }}
-        />
+          />
+          <Stack.Screen name="ChatScreen" 
+          component={ChatScreen}
+          />
       </Stack.Navigator>
     </NavigationContainer>
   );
