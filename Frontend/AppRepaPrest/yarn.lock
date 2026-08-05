@@ -3770,6 +3770,7 @@ __metadata:
     expo-audio: "npm:~1.1.1"
     expo-build-properties: "npm:^57.0.3"
     expo-cli: "npm:6.3.10"
+    expo-clipboard: "npm:~8.0.8"
     expo-location: "npm:~19.0.8"
     expo-secure-store: "npm:^57.0.1"
     expo-status-bar: "npm:~3.0.9"
@@ -6248,6 +6249,17 @@ __metadata:
     expo: bin/expo.js
     expo-cli: bin/expo.js
   checksum: 10c0/81810502d13f6f043cfce430dd47b71cd268a1304e45a137c21a8cae7fc2f1c8931dc5c5b99830d78ba3993f4670eefd8bcf4bffec07ba290c261310a6e33cff
+  languageName: node
+  linkType: hard
+
+"expo-clipboard@npm:~8.0.8":
+  version: 8.0.8
+  resolution: "expo-clipboard@npm:8.0.8"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/afd16183bee237c825ed594320dd4eccd1b8cbcdf6fa993b80c946a7dc26adcdd48a847bd57e7150f176866a6e351a898efe87188793ef0982382ba1e32fb6fb
   languageName: node
   linkType: hard
 

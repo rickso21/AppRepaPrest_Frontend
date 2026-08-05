@@ -19,6 +19,7 @@
     "expo-audio": "~1.1.1",
     "expo-build-properties": "^57.0.3",
     "expo-cli": "6.3.10",
+    "expo-clipboard": "~8.0.8",
     "expo-location": "~19.0.8",
     "expo-secure-store": "^57.0.1",
     "expo-status-bar": "~3.0.9",

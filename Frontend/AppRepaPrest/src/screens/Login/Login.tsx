@@ -69,7 +69,8 @@ export default function LoginScreen({ navigation }: Props): JSX.Element {
   const onPressOut = () =>
     Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true }).start();
 
-  const handleLogin = async (): Promise<void> => {
+  //Con Base
+  /*const handleLogin = async (): Promise<void> => {
     // Validar campos vacíos
     if (!email.trim() || !password.trim()) {
       Alert.alert('Error', 'Por favor completa todos los campos');
@@ -157,6 +158,72 @@ export default function LoginScreen({ navigation }: Props): JSX.Element {
       setLoading(false);
     }
   };
+  */
+  //Con Base
+  
+  //Sin Base
+  const handleLogin = async (): Promise<void> => {
+      // Validar campos vacíos
+      if (!email.trim() || !password.trim()) {
+        Alert.alert('Error', 'Por favor completa todos los campos');
+        return;
+      }
+    
+      // Validar formato (email o teléfono)
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const phoneRegex = /^[0-9]{10}$/;
+    
+      if (!emailRegex.test(email.trim()) && !phoneRegex.test(email.trim())) {
+        Alert.alert('Error', 'Ingresa un correo válido o número de teléfono (10 dígitos)');
+        return;
+      }
+    
+      setLoading(true);
+    
+      // Simular delay de red
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    
+      try {
+        // Datos de usuario simulados
+        const mockUser = {
+          id: 1,
+          nombre: 'Usuario Prueba',
+          email: email.trim(),
+          telefono: emailRegex.test(email.trim()) ? '1234567890' : email.trim(),
+          // Puedes agregar más campos simulados si los necesitas
+        };
+    
+        // Simular validación de credenciales
+        // Ejemplo: email: test@test.com, password: 123456
+        const isValidCredentials = 
+          (email.trim() === 'test@test.com' && password.trim() === '123456') ||
+          (email.trim() === '1234567890' && password.trim() === '123456');
+    
+        if (isValidCredentials) {
+          console.log('Login exitoso (simulado):', mockUser);
+    
+          // Guardar usuario en AsyncStorage o contexto si lo necesitas
+          // await AsyncStorage.setItem('user', JSON.stringify(mockUser));
+    
+          // Navegar al Home con los datos del usuario
+          navigation.replace('Home', {
+            userId: mockUser.id,
+            userName: mockUser.nombre,
+            userEmail: mockUser.email,
+            userPhone: mockUser.telefono
+          });
+        } else {
+          // Simular credenciales incorrectas
+          Alert.alert('Error', 'Credenciales incorrectas. Usa test@test.com / 123456');
+        }
+    
+      } catch (error: any) {
+        console.error('Error en login simulado:', error);
+        Alert.alert('Error', 'Ocurrió un error inesperado');
+      } finally {
+        setLoading(false);
+      }
+    };
 
   return (
     <ImageBackground source={backgroundImage} style={styles.background} resizeMode="cover">
@@ -304,7 +371,7 @@ export default function LoginScreen({ navigation }: Props): JSX.Element {
                 <View style={styles.registerContainer}>
                   <Text style={styles.registerText}>¿No tienes cuenta? </Text>
                   <Pressable
-                    onPress={() => navigation.navigate('Register')}
+                    onPress={() => navigation.navigate('RoleSelection')}
                     hitSlop={8}
                     disabled={loading}
                   >

@@ -11,7 +11,6 @@ import {
   Platform,
   KeyboardAvoidingView,
   ScrollView,
-  Alert,
   Dimensions,
   ActivityIndicator,
   Animated,
@@ -25,16 +24,13 @@ const backgroundImage = require('../../../assets/images/photo-1519501025264-65ba
 
 type Props = StackScreenProps<RootStackParamList, 'Register'>;
 
-/* ------------------------------------------------------------------ */
-/* Tipos y constantes de validación                                     */
-/* ------------------------------------------------------------------ */
-
 type FieldKey =
   | 'nombre'
   | 'apellidoP'
   | 'apellidoM'
   | 'email'
   | 'telefono'
+  | 'codigoInvitacion'
   | 'password'
   | 'confirmPassword';
 
@@ -42,11 +38,12 @@ type FormState = Record<FieldKey, string>;
 type ErrorState = Partial<Record<FieldKey, string>>;
 type TouchedState = Partial<Record<FieldKey, boolean>>;
 
-// Letras (incluye acentos y ñ), espacios, guiones y apóstrofes
 const NAME_ALLOWED = /[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s'-]/g;
 const NAME_VALID = /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s'-]{2,50}$/;
 const EMAIL_VALID = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
 const PHONE_VALID = /^[1-9][0-9]{9}$/;
+// Mismo formato que genera RegisterAgrupacion: "A340-34DFGSA"
+const CODE_VALID = /^[A-Z0-9]{4}-[A-Z0-9]{7}$/;
 
 const LIMITS = {
   name: 50,
@@ -54,10 +51,6 @@ const LIMITS = {
   phone: 10,
   password: 64,
 };
-
-/* ------------------------------------------------------------------ */
-/* Reglas de contraseña                                                 */
-/* ------------------------------------------------------------------ */
 
 const passwordRules = (pwd: string) => ({
   length: pwd.length >= 8,
@@ -70,15 +63,16 @@ const passwordRules = (pwd: string) => ({
 const passwordScore = (pwd: string): number =>
   Object.values(passwordRules(pwd)).filter(Boolean).length;
 
-/* ------------------------------------------------------------------ */
+export default function RegisterScreen({ navigation, route }: Props): JSX.Element {
+  const rol = route.params?.rol;
 
-export default function RegisterScreen({ navigation }: Props): JSX.Element {
   const [form, setForm] = useState<FormState>({
     nombre: '',
     apellidoP: '',
     apellidoM: '',
     email: '',
     telefono: '',
+    codigoInvitacion: '',
     password: '',
     confirmPassword: '',
   });
@@ -107,22 +101,19 @@ export default function RegisterScreen({ navigation }: Props): JSX.Element {
   const onPressOut = () =>
     Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true }).start();
 
-  /* ---------------------------------------------------------------- */
-  /* Sanitización: se aplica mientras el usuario escribe               */
-  /* ---------------------------------------------------------------- */
-
   const sanitize = (key: FieldKey, text: string): string => {
     switch (key) {
       case 'nombre':
       case 'apellidoP':
       case 'apellidoM':
-        // Quita caracteres no permitidos y colapsa espacios múltiples
         return text.replace(NAME_ALLOWED, '').replace(/\s{2,}/g, ' ').slice(0, LIMITS.name);
       case 'telefono':
         return text.replace(/[^0-9]/g, '').slice(0, LIMITS.phone);
       case 'email':
-        // Sin espacios; se normaliza a minúsculas en el blur
         return text.replace(/\s/g, '').slice(0, LIMITS.email);
+      case 'codigoInvitacion':
+        // Mayúsculas y sin espacios, como el código generado
+        return text.replace(/\s/g, '').toUpperCase().slice(0, 12);
       case 'password':
       case 'confirmPassword':
         return text.slice(0, LIMITS.password);
@@ -130,10 +121,6 @@ export default function RegisterScreen({ navigation }: Props): JSX.Element {
         return text;
     }
   };
-
-  /* ---------------------------------------------------------------- */
-  /* Validación individual por campo                                   */
-  /* ---------------------------------------------------------------- */
 
   const validateField = (key: FieldKey, data: FormState = form): string | undefined => {
     const value = data[key].trim();
@@ -165,6 +152,12 @@ export default function RegisterScreen({ navigation }: Props): JSX.Element {
         return undefined;
       }
 
+      case 'codigoInvitacion': {
+        if (!value) return 'El código de invitación es obligatorio';
+        if (!CODE_VALID.test(value)) return 'Formato inválido (ej. A340-34DFGSA)';
+        return undefined;
+      }
+
       case 'password': {
         const pwd = data.password;
         if (!pwd) return 'La contraseña es obligatoria';
@@ -176,7 +169,6 @@ export default function RegisterScreen({ navigation }: Props): JSX.Element {
         if (!rules.number) return 'Debe incluir al menos un número';
         if (!rules.special) return 'Debe incluir al menos un carácter especial';
 
-        // No debe contener datos personales
         const lower = pwd.toLowerCase();
         const nombreLower = data.nombre.trim().toLowerCase();
         const emailLocal = data.email.split('@')[0].trim().toLowerCase();
@@ -208,6 +200,7 @@ export default function RegisterScreen({ navigation }: Props): JSX.Element {
       'apellidoM',
       'email',
       'telefono',
+      'codigoInvitacion',
       'password',
       'confirmPassword',
     ];
@@ -219,20 +212,14 @@ export default function RegisterScreen({ navigation }: Props): JSX.Element {
     return next;
   };
 
-  /* ---------------------------------------------------------------- */
-  /* Handlers                                                          */
-  /* ---------------------------------------------------------------- */
-
   const handleChange = (key: FieldKey, text: string): void => {
     const clean = sanitize(key, text);
     const next = { ...form, [key]: clean };
     setForm(next);
 
-    // Si el campo ya fue tocado, revalida en tiempo real
     if (touched[key]) {
       setErrors((prev) => ({ ...prev, [key]: validateField(key, next) }));
     }
-    // La confirmación depende de la contraseña: se revalida en cascada
     if (key === 'password' && touched.confirmPassword) {
       setErrors((prev) => ({ ...prev, confirmPassword: validateField('confirmPassword', next) }));
     }
@@ -241,7 +228,6 @@ export default function RegisterScreen({ navigation }: Props): JSX.Element {
   const handleBlur = (key: FieldKey): void => {
     setFocusedField(null);
 
-    // Normaliza al salir del campo
     let next = { ...form };
     if (key === 'email') next.email = form.email.trim().toLowerCase();
     if (key === 'nombre' || key === 'apellidoP' || key === 'apellidoM') {
@@ -262,12 +248,13 @@ export default function RegisterScreen({ navigation }: Props): JSX.Element {
       apellidoM: true,
       email: true,
       telefono: true,
+      codigoInvitacion: true,
       password: true,
       confirmPassword: true,
     });
 
     if (Object.keys(nextErrors).length > 0) {
-      return; // Los mensajes ya se muestran bajo cada campo
+      return;
     }
 
     setLoading(true);
@@ -275,15 +262,9 @@ export default function RegisterScreen({ navigation }: Props): JSX.Element {
     // Simulación de registro - Aquí iría la llamada real al backend
     setTimeout(() => {
       setLoading(false);
-      Alert.alert('¡Registro exitoso!', 'Tu cuenta ha sido creada correctamente', [
-        { text: 'Iniciar sesión', onPress: () => navigation.navigate('Login') },
-      ]);
+      navigation.navigate('RegisterSuccess', { nombre: form.nombre.trim() });
     }, 1500);
   };
-
-  /* ---------------------------------------------------------------- */
-  /* Render de inputs                                                  */
-  /* ---------------------------------------------------------------- */
 
   const renderInput = (
     key: FieldKey,
@@ -295,7 +276,7 @@ export default function RegisterScreen({ navigation }: Props): JSX.Element {
       isSecureVisible?: boolean;
       keyboardType?: 'default' | 'email-address' | 'phone-pad';
       maxLength?: number;
-      textContentType?: any;
+      autoCapitalize?: 'none' | 'words' | 'characters';
     }
   ) => {
     const isFocused = focusedField === key;
@@ -327,10 +308,12 @@ export default function RegisterScreen({ navigation }: Props): JSX.Element {
             secureTextEntry={options?.secure && !options?.isSecureVisible}
             keyboardType={options?.keyboardType ?? 'default'}
             maxLength={options?.maxLength}
-            autoCapitalize={options?.keyboardType === 'email-address' ? 'none' : 'words'}
+            autoCapitalize={
+              options?.autoCapitalize ??
+              (options?.keyboardType === 'email-address' ? 'none' : 'words')
+            }
             autoCorrect={false}
             autoComplete="off"
-            textContentType={options?.textContentType ?? 'none'}
           />
           {options?.toggleSecure && (
             <Pressable onPress={options.toggleSecure} style={styles.eyeIcon} hitSlop={10}>
@@ -353,10 +336,6 @@ export default function RegisterScreen({ navigation }: Props): JSX.Element {
     );
   };
 
-  /* ---------------------------------------------------------------- */
-  /* Indicador de fortaleza                                            */
-  /* ---------------------------------------------------------------- */
-
   const renderStrength = () => {
     const score = passwordScore(form.password);
     const pct = form.password ? (score / 5) * 100 : 0;
@@ -374,6 +353,13 @@ export default function RegisterScreen({ navigation }: Props): JSX.Element {
   };
 
   const isFormReady = Object.keys(validateAll(form)).length === 0;
+
+  const rolInfo =
+    rol === 'administrador'
+      ? { label: 'Administrador', icon: 'shield-checkmark', color: '#2196F3' }
+      : rol === 'asociado'
+      ? { label: 'Asociado', icon: 'bicycle', color: '#FF6B35' }
+      : null;
 
   return (
     <ImageBackground source={backgroundImage} style={styles.background} resizeMode="cover">
@@ -400,6 +386,15 @@ export default function RegisterScreen({ navigation }: Props): JSX.Element {
               <View style={styles.header}>
                 <Text style={styles.title}>Crear cuenta</Text>
                 <Text style={styles.subtitle}>Completa tus datos para registrarte</Text>
+
+                {rolInfo && (
+                  <View style={[styles.roleChip, { borderColor: rolInfo.color + '55', backgroundColor: rolInfo.color + '1A' }]}>
+                    <Ionicons name={rolInfo.icon as any} size={15} color={rolInfo.color} />
+                    <Text style={[styles.roleChipText, { color: rolInfo.color }]}>
+                      Registrándote como {rolInfo.label}
+                    </Text>
+                  </View>
+                )}
               </View>
 
               <View style={styles.formContainer}>
@@ -413,6 +408,10 @@ export default function RegisterScreen({ navigation }: Props): JSX.Element {
                 {renderInput('telefono', 'call-outline', 'Teléfono (10 dígitos)', {
                   keyboardType: 'phone-pad',
                   maxLength: LIMITS.phone,
+                })}
+                {renderInput('codigoInvitacion', 'ticket-outline', 'Código de invitación', {
+                  maxLength: 12,
+                  autoCapitalize: 'characters',
                 })}
                 {renderInput('password', 'lock-closed-outline', 'Contraseña', {
                   secure: true,
@@ -514,10 +513,22 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     textAlign: 'center',
   },
+  roleChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  roleChipText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
   formContainer: { width: '100%', marginTop: 28 },
 
-  // marginBottom reserva de forma permanente el espacio del mensaje de error,
-  // de modo que mostrarlo u ocultarlo no altera la altura del formulario.
   fieldBlock: { width: '100%', marginBottom: 26, position: 'relative' },
   inputContainer: {
     flexDirection: 'row',
@@ -535,7 +546,6 @@ const styles = StyleSheet.create({
   passwordInput: { paddingRight: 40 },
   eyeIcon: { position: 'absolute', right: 16 },
 
-  // position absolute: el mensaje flota bajo el input sin ocupar espacio en el flujo
   errorRow: {
     position: 'absolute',
     top: '100%',
@@ -547,7 +557,6 @@ const styles = StyleSheet.create({
   },
   errorText: { color: '#FF4D4D', fontSize: 12, marginLeft: 5, flex: 1 },
 
-  // Alto fijo: la barra existe siempre, aunque no haya contraseña escrita
   strengthBlock: {
     flexDirection: 'row',
     alignItems: 'center',
