@@ -33,7 +33,7 @@ type Feature = {
 const FEATURES: Feature[] = [
   { icon: 'locate', color: '#1fd125', title: 'Monitoreo GPS', desc: 'Seguimiento en tiempo real' },
   { icon: 'cash-outline', color: '#ef9905', title: 'Préstamos al momento', desc: 'Solicita tu primer préstamo' },
-  { icon: 'trending-up', color: '#008cff', title: 'Market Place', desc: 'Compra y vende con seguridad' },
+//  { icon: 'trending-up', color: '#008cff', title: 'Market Place', desc: 'Compra y vende con seguridad' },
   { icon: 'people', color: '#ff6932', title: 'Red Social', desc: '       Protección y comunidad' },
 ];
 

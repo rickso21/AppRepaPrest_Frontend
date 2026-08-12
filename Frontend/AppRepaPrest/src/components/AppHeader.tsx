@@ -5,13 +5,10 @@ import { Ionicons } from '@expo/vector-icons';
 type Props = {
   userName: string;
   subtitle: string;
+  onPressAvatar?: () => void; // abre "Mi cuenta" al tocar el círculo
 };
 
-/**
- * Encabezado compartido por las tres pestañas: avatar + nombre + subtítulo.
- * Al tenerlo como componente, cambiarlo una vez lo cambia en todas.
- */
-export default function AppHeader({ userName, subtitle }: Props): JSX.Element {
+export default function AppHeader({ userName, subtitle, onPressAvatar }: Props): JSX.Element {
   const initials = userName
     .split(' ')
     .map((w) => w[0])
@@ -21,9 +18,9 @@ export default function AppHeader({ userName, subtitle }: Props): JSX.Element {
 
   return (
     <View style={styles.header}>
-      <View style={styles.avatar}>
+      <Pressable style={styles.avatar} onPress={onPressAvatar} hitSlop={6}>
         <Text style={styles.avatarText}>{initials}</Text>
-      </View>
+      </Pressable>
 
       <View style={styles.headerContent}>
         <Text style={styles.userName} numberOfLines={1}>
@@ -58,28 +55,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(255,107,53,0.35)',
   },
-  avatarText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  headerContent: {
-    flex: 1,
-    marginLeft: 13,
-  },
-  userName: {
-    fontSize: 19,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: 0.2,
-  },
-  subtitle: {
-    fontSize: 11.5,
-    color: '#FF6B35',
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    marginTop: 2,
-  },
+  avatarText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  headerContent: { flex: 1, marginLeft: 13 },
+  userName: { fontSize: 19, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
+  subtitle: { fontSize: 11.5, color: '#FF6B35', fontWeight: '700', letterSpacing: 1.2, marginTop: 2 },
   bellButton: {
     width: 44,
     height: 44,
@@ -102,5 +81,3 @@ const styles = StyleSheet.create({
     borderColor: '#0F0F17',
   },
 });
-
-

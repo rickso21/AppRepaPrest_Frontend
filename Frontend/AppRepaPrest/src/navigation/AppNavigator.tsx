@@ -2,7 +2,6 @@
 import React, { JSX } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-
 import Welcome from '../screens/Welcome/Welcome';
 import Login from '../screens/Login/Login';
 import Home from '../screens/Home/Home';
@@ -13,6 +12,7 @@ import RegisterAgrupacionSuccess from '../screens/RegisterAgrupacionSuccess/Regi
 import ForgotPassword from '../screens/ForgotPassword/ForgotPassword';
 import ResetPassword from '../screens/ResetPassword/ResetPassword';
 import RegisterSuccess from '../screens/RegisterSuccess/RegisterSuccess';
+import Perfil from '../screens/Perfil/Perfil';
 import { authService } from '../services/auth.service'; 
 
 
@@ -26,12 +26,14 @@ export type RootStackParamList = {
   ForgotPassword: undefined;
   ResetPassword: { email: string };
   RegisterSuccess: { nombre?: string };
+  Perfil: { userName?: string } | undefined;
   Home: {
     userId?: number;
     userName?: string;
     userEmail?: string;
     userPhone?: string;
   };
+  
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -109,6 +111,14 @@ export default function AppNavigator(): JSX.Element {
           options={{
             animationTypeForReplace: 'push',
             animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen 
+          name="Perfil" 
+          component={Perfil}
+          options={{
+            animationTypeForReplace: 'push',
+            animation: 'slide_from_bottom',
           }}
         />
       </Stack.Navigator>
