@@ -45,6 +45,44 @@ export interface LoginResponse {
   };
 }
 
+
+export interface RegisterAgrupacionData {
+  name: string;
+  apellido_p: string;
+  apellido_m: string;
+  email: string;
+  telefono: string; // ← Campo adicional
+  password: string;
+  password_confirmation: string;
+  name_group: string;
+  // NOTA: El backend genera el código automáticamente, no lo enviamos
+}
+
+export interface RegisterAgrupacionResponse {
+  res: boolean;
+  msg: string;
+  code?: string; 
+}
+
+// ========== REGISTRO DE ASOCIADO ==========
+export interface RegisterAsociadoData {
+  name: string;
+  apellido_p: string;
+  apellido_m: string;
+  email: string;
+  telefono: string;
+  password: string;
+  password_confirmation: string;
+  code: string;
+}
+
+export interface RegisterAsociadoResponse {
+  res?: boolean;
+  success?: boolean;
+  msg?: string;
+  user?: any;
+}
+
 export const authService = {
   login: async (credentials: LoginCredentials): Promise<LoginResponse> => {
     try {
@@ -59,6 +97,40 @@ export const authService = {
       throw error;
     }
   },
+
+  // ========== MÉTODO DE REGISTRO ADMIN AGRUPACION ==========
+registerAgrupacion: async (data: RegisterAgrupacionData): Promise<RegisterAgrupacionResponse> => {
+  try {
+    const response = await api.post<RegisterAgrupacionResponse>('/register_admin', data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error en registro de agrupación:', error);
+    // Si el backend devuelve una respuesta con error
+    if (error.response?.data) {
+      throw error.response.data;
+    }
+    throw error;
+  }
+},
+
+
+  // ========== MÉTODO DE REGISTRO USUARIO ASOCIADO ==========
+registerAsociado: async (data: RegisterAsociadoData): Promise<RegisterAsociadoResponse> => {
+  try {
+    const response = await api.post<RegisterAsociadoResponse>('/register', data);
+    console.log('Respuesta del servidor - Status:', response.status);
+    console.log('Respuesta del servidor - Data:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error en registro de asociado:', error);
+    // Si el servidor devuelve una respuesta de error, la lanzamos
+    if (error.response?.data) {
+      throw error.response.data;
+    }
+    throw error;
+  }
+},
+
 
   logout: async (): Promise<void> => {
     try {

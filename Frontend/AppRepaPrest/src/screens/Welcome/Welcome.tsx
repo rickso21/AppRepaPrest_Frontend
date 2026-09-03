@@ -145,8 +145,8 @@ export default function WelcomeScreen({ navigation }: Props): JSX.Element {
                   resizeMode="contain"
                 />
               </View>
-              <Text style={styles.title}>Delivery</Text>
-              <Text style={styles.subtitle}>Herramientas para repartidores</Text>
+              <Text style={styles.title}>Delivery Sobre Ruedas</Text>
+              <Text style={styles.subtitle}>Herramientas a tu medida</Text>
             </View>
 
             {/* Funcionalidades: cada una anima en cascada y reacciona al tocar */}

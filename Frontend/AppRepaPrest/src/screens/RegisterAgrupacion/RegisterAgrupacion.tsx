@@ -15,81 +15,96 @@ import {
   ActivityIndicator,
   Animated,
   Alert,
-  TouchableOpacity,
   Modal,
+  TouchableOpacity,
+  FlatList,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { authService } from '../../services/auth/AuthService';
 
+// ========== ESTADOS DE MÉXICO ==========
+const ESTADOS_MEXICO = [
+  'Aguascalientes',
+  'Baja California',
+  'Baja California Sur',
+  'Campeche',
+  'Chiapas',
+  'Chihuahua',
+  'Ciudad de México',
+  'Coahuila',
+  'Colima',
+  'Durango',
+  'Estado de México',
+  'Guanajuato',
+  'Guerrero',
+  'Hidalgo',
+  'Jalisco',
+  'Michoacán',
+  'Morelos',
+  'Nayarit',
+  'Nuevo León',
+  'Oaxaca',
+  'Puebla',
+  'Querétaro',
+  'Quintana Roo',
+  'San Luis Potosí',
+  'Sinaloa',
+  'Sonora',
+  'Tabasco',
+  'Tamaulipas',
+  'Tlaxcala',
+  'Veracruz',
+  'Yucatán',
+  'Zacatecas',
+];
+
 const { height } = Dimensions.get('window');
 const backgroundImage = require('../../../assets/images/photo-1519501025264-65ba15a82390.jpg');
 
-type Props = StackScreenProps<RootStackParamList, 'Register'>;
+type Props = StackScreenProps<RootStackParamList, 'RegisterAgrupacion'>;
 
 type FieldKey =
-  | 'nombre'
-  | 'apellidoP'
-  | 'apellidoM'
-  | 'email'
+  | 'responsable'
+  | 'agrupacion'
+  | 'ciudad'
   | 'telefono'
-  | 'codigoInvitacion'
+  | 'email'
   | 'password'
   | 'confirmPassword';
 
 type FormState = Record<FieldKey, string>;
 type ErrorState = Partial<Record<FieldKey, string>>;
-type TouchedState = Partial<Record<FieldKey, boolean>>;
 
-const NAME_ALLOWED = /[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s'-]/g;
-const NAME_VALID = /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s'-]{2,50}$/;
 const EMAIL_VALID = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
 const PHONE_VALID = /^[1-9][0-9]{9}$/;
-const CODE_VALID = /^[A-Z0-9]{8}$/;
 
-const LIMITS = {
-  name: 50,
-  email: 100,
-  phone: 10,
-  password: 64,
-};
-
-const passwordRules = (pwd: string) => ({
-  length: pwd.length >= 8,
-  upper: /[A-Z]/.test(pwd),
-  lower: /[a-z]/.test(pwd),
-  number: /[0-9]/.test(pwd),
-  special: /[^A-Za-z0-9]/.test(pwd),
-});
-
-const passwordScore = (pwd: string): number =>
-  Object.values(passwordRules(pwd)).filter(Boolean).length;
-
-export default function RegisterScreen({ navigation, route }: Props): JSX.Element {
-  const rol = route.params?.rol;
-
+export default function RegisterAgrupacionScreen({ navigation }: Props): JSX.Element {
   const [form, setForm] = useState<FormState>({
-    nombre: '',
-    apellidoP: '',
-    apellidoM: '',
-    email: '',
+    responsable: '',
+    agrupacion: '',
+    ciudad: '',
     telefono: '',
-    codigoInvitacion: '',
+    email: '',
     password: '',
     confirmPassword: '',
   });
-
   const [errors, setErrors] = useState<ErrorState>({});
-  const [touched, setTouched] = useState<TouchedState>({});
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirm, setShowConfirm] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [focusedField, setFocusedField] = useState<FieldKey | null>(null);
+  
+  // ========== ESTADO PARA EL SELECT DE CIUDAD ==========
+  const [modalVisible, setModalVisible] = useState<boolean>(false);
+  const [searchText, setSearchText] = useState<string>('');
+  const [filteredEstados, setFilteredEstados] = useState<string[]>(ESTADOS_MEXICO);
 
   // ========== ESTADO PARA TÉRMINOS Y CONDICIONES ==========
   const [aceptoTerminos, setAceptoTerminos] = useState<boolean>(false);
-  const [modalVisible, setModalVisible] = useState<boolean>(false);
+  const [modalTerminosVisible, setModalTerminosVisible] = useState<boolean>(false);
 
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(30)).current;
@@ -102,150 +117,71 @@ export default function RegisterScreen({ navigation, route }: Props): JSX.Elemen
     ]).start();
   }, [fade, slide]);
 
+  // ========== FILTRAR ESTADOS ==========
+  useEffect(() => {
+    if (searchText.trim() === '') {
+      setFilteredEstados(ESTADOS_MEXICO);
+    } else {
+      const filtered = ESTADOS_MEXICO.filter(estado =>
+        estado.toLowerCase().includes(searchText.toLowerCase())
+      );
+      setFilteredEstados(filtered);
+    }
+  }, [searchText]);
+
   const onPressIn = () =>
     Animated.spring(buttonScale, { toValue: 0.96, useNativeDriver: true }).start();
   const onPressOut = () =>
     Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true }).start();
 
-  const sanitize = (key: FieldKey, text: string): string => {
-    switch (key) {
-      case 'nombre':
-      case 'apellidoP':
-      case 'apellidoM':
-        return text.replace(NAME_ALLOWED, '').replace(/\s{2,}/g, ' ').slice(0, LIMITS.name);
-      case 'telefono':
-        return text.replace(/[^0-9]/g, '').slice(0, LIMITS.phone);
-      case 'email':
-        return text.replace(/\s/g, '').slice(0, LIMITS.email);
-      case 'codigoInvitacion':
-        return text.replace(/\s/g, '').toUpperCase().slice(0, 8);
-      case 'password':
-      case 'confirmPassword':
-        return text.slice(0, LIMITS.password);
-      default:
-        return text;
+  const handleChange = (key: FieldKey, text: string) => {
+    let clean = text;
+    if (key === 'telefono') clean = text.replace(/[^0-9]/g, '').slice(0, 10);
+    setForm((prev) => ({ ...prev, [key]: clean }));
+  };
+
+  // ========== SELECCIONAR ESTADO ==========
+  const selectEstado = (estado: string) => {
+    setForm((prev) => ({ ...prev, ciudad: estado }));
+    setModalVisible(false);
+    setSearchText('');
+    if (errors.ciudad) {
+      setErrors((prev) => ({ ...prev, ciudad: undefined }));
     }
   };
 
-  const validateField = (key: FieldKey, data: FormState = form): string | undefined => {
-    const value = data[key].trim();
-
-    switch (key) {
-      case 'nombre':
-      case 'apellidoP':
-      case 'apellidoM': {
-        const label =
-          key === 'nombre' ? 'El nombre' : key === 'apellidoP' ? 'El apellido paterno' : 'El apellido materno';
-        if (!value) return `${label} es obligatorio`;
-        if (value.length < 2) return `${label} debe tener al menos 2 caracteres`;
-        if (!NAME_VALID.test(value)) return `${label} solo admite letras`;
-        return undefined;
-      }
-
-      case 'email': {
-        if (!value) return 'El correo electrónico es obligatorio';
-        if (!EMAIL_VALID.test(value)) return 'Ingresa un correo electrónico válido';
-        if (value.length > LIMITS.email) return 'El correo es demasiado largo';
-        return undefined;
-      }
-
-      case 'telefono': {
-        if (!value) return 'El teléfono es obligatorio';
-        if (!/^[0-9]+$/.test(value)) return 'El teléfono solo admite dígitos';
-        if (value.length !== 10) return 'El teléfono debe tener exactamente 10 dígitos';
-        if (!PHONE_VALID.test(value)) return 'El teléfono no puede iniciar con 0';
-        return undefined;
-      }
-
-      case 'codigoInvitacion': {
-        if (!value) return 'El código de invitación es obligatorio';
-        if (!CODE_VALID.test(value)) return 'Formato inválido (8 caracteres alfanuméricos)';
-        return undefined;
-      }
-
-      case 'password': {
-        const pwd = data.password;
-        if (!pwd) return 'La contraseña es obligatoria';
-
-        const rules = passwordRules(pwd);
-        if (!rules.length) return 'Debe tener al menos 8 caracteres';
-        if (!rules.upper) return 'Debe incluir al menos una mayúscula';
-        if (!rules.lower) return 'Debe incluir al menos una minúscula';
-        if (!rules.number) return 'Debe incluir al menos un número';
-        if (!rules.special) return 'Debe incluir al menos un carácter especial';
-
-        const lower = pwd.toLowerCase();
-        const nombreLower = data.nombre.trim().toLowerCase();
-        const emailLocal = data.email.split('@')[0].trim().toLowerCase();
-
-        if (nombreLower.length >= 3 && lower.includes(nombreLower)) {
-          return 'La contraseña no debe contener tu nombre';
-        }
-        if (emailLocal.length >= 3 && lower.includes(emailLocal)) {
-          return 'La contraseña no debe contener tu correo';
-        }
-        return undefined;
-      }
-
-      case 'confirmPassword': {
-        if (!data.confirmPassword) return 'Confirma tu contraseña';
-        if (data.confirmPassword !== data.password) return 'Las contraseñas no coinciden';
-        return undefined;
-      }
-
-      default:
-        return undefined;
-    }
-  };
-
-  const validateAll = (data: FormState): ErrorState => {
-    const keys: FieldKey[] = [
-      'nombre',
-      'apellidoP',
-      'apellidoM',
-      'email',
-      'telefono',
-      'codigoInvitacion',
-      'password',
-      'confirmPassword',
-    ];
+  const validate = (): boolean => {
     const next: ErrorState = {};
-    keys.forEach((k) => {
-      const err = validateField(k, data);
-      if (err) next[k] = err;
-    });
-    return next;
+
+    if (!form.responsable.trim()) next.responsable = 'Ingresa el nombre del responsable';
+    if (!form.agrupacion.trim()) next.agrupacion = 'Ingresa el nombre de la agrupación';
+    if (!form.ciudad.trim()) next.ciudad = 'Selecciona un estado';
+    if (!form.telefono.trim()) next.telefono = 'El teléfono es obligatorio';
+    if (!PHONE_VALID.test(form.telefono)) next.telefono = 'Teléfono inválido (10 dígitos)';
+    if (!EMAIL_VALID.test(form.email.trim())) next.email = 'Correo electrónico inválido';
+    if (form.password.length < 8) next.password = 'Mínimo 8 caracteres';
+    if (form.confirmPassword !== form.password) next.confirmPassword = 'Las contraseñas no coinciden';
+
+    setErrors(next);
+    return Object.keys(next).length === 0;
   };
 
-  const handleChange = (key: FieldKey, text: string): void => {
-    const clean = sanitize(key, text);
-    const next = { ...form, [key]: clean };
-    setForm(next);
-
-    if (touched[key]) {
-      setErrors((prev) => ({ ...prev, [key]: validateField(key, next) }));
-    }
-    if (key === 'password' && touched.confirmPassword) {
-      setErrors((prev) => ({ ...prev, confirmPassword: validateField('confirmPassword', next) }));
-    }
+  // ========== FUNCIÓN PARA NOMBRAR CAMPOS ==========
+  const getFieldLabel = (key: string): string => {
+    const labels: Record<string, string> = {
+      'name': 'Nombre',
+      'apellido_p': 'Apellido paterno',
+      'apellido_m': 'Apellido materno',
+      'email': 'Correo electrónico',
+      'telefono': 'Teléfono',
+      'password': 'Contraseña',
+      'name_group': 'Nombre de la agrupación',
+    };
+    return labels[key] || key;
   };
 
-  const handleBlur = (key: FieldKey): void => {
-    setFocusedField(null);
-
-    let next = { ...form };
-    if (key === 'email') next.email = form.email.trim().toLowerCase();
-    if (key === 'nombre' || key === 'apellidoP' || key === 'apellidoM') {
-      next[key] = form[key].trim();
-    }
-    setForm(next);
-
-    setTouched((prev) => ({ ...prev, [key]: true }));
-    setErrors((prev) => ({ ...prev, [key]: validateField(key, next) }));
-  };
-
-  // ========== REGISTRO DE ASOCIADO ==========
-  const handleRegister = async (): Promise<void> => {
+  // ========== REGISTRO CON API REAL ==========
+  const handleRegistrar = async (): Promise<void> => {
     // Validar términos y condiciones
     if (!aceptoTerminos) {
       Alert.alert(
@@ -256,73 +192,50 @@ export default function RegisterScreen({ navigation, route }: Props): JSX.Elemen
       return;
     }
 
-    const nextErrors = validateAll(form);
-    setErrors(nextErrors);
-    setTouched({
-      nombre: true,
-      apellidoP: true,
-      apellidoM: true,
-      email: true,
-      telefono: true,
-      codigoInvitacion: true,
-      password: true,
-      confirmPassword: true,
-    });
-
-    if (Object.keys(nextErrors).length > 0) {
-      Alert.alert(
-        '❌ Errores en el formulario',
-        'Por favor, revisa los campos marcados en rojo.',
-        [{ text: 'Entendido' }]
-      );
-      return;
-    }
+    if (!validate()) return;
 
     setLoading(true);
 
     try {
+      const nombreCompleto = form.responsable.trim().split(' ');
+      const nombre = nombreCompleto[0] || 'Administrador';
+      const apellidoP = nombreCompleto[1] || 'Principal';
+      const apellidoM = nombreCompleto.slice(2).join(' ') || '0';
+
       const registerData = {
-        name: form.nombre.trim(),
-        apellido_p: form.apellidoP.trim(),
-        apellido_m: form.apellidoM.trim(),
-        email: form.email.trim().toLowerCase(),
-        telefono: form.telefono.trim(),
+        name: nombre,
+        apellido_p: apellidoP,
+        apellido_m: apellidoM,
+        email: form.email.trim(),
+        telefono: form.telefono,
         password: form.password,
         password_confirmation: form.confirmPassword,
-        code: form.codigoInvitacion.trim().toUpperCase(),
+        name_group: form.agrupacion.trim(),
       };
 
-      console.log('📤 Enviando datos al backend (Asociado):', registerData);
+      console.log('📤 Enviando datos al backend:', registerData);
 
-      const response = await authService.registerAsociado(registerData);
+      const response = await authService.registerAgrupacion(registerData);
 
       console.log('📥 Respuesta del backend:', response);
 
       const esExito = 
         response.res === true || 
-        response.success === true ||
+        (response.code && response.code.length > 0) ||
         (response.msg && response.msg.includes('Exito')) ||
         (response.msg && response.msg.includes('éxito'));
 
       if (esExito) {
-        Alert.alert(
-          '✅ ¡Registro exitoso!',
-          `Bienvenido ${form.nombre.trim()}. Tu cuenta ha sido creada correctamente.`,
-          [
-            {
-              text: 'Continuar',
-              onPress: () => {
-                navigation.navigate('RegisterSuccess', { 
-                  nombre: form.nombre.trim() 
-                });
-              },
-            },
-          ]
-        );
+        const codigoGenerado = response.code || 'Código no disponible';
+        
+        navigation.navigate('RegisterAgrupacionSuccess', {
+          agrupacion: form.agrupacion.trim(),
+          codigo: codigoGenerado,
+        });
       } else {
         Alert.alert(
           '❌ Error al registrar',
-          response.msg || 'Ocurrió un error al registrar. Intenta nuevamente.'
+          response.msg || 'Ocurrió un error al registrar la agrupación.'
         );
       }
     } catch (error: any) {
@@ -333,13 +246,13 @@ export default function RegisterScreen({ navigation, route }: Props): JSX.Elemen
       
       if (errorsData) {
         const fieldMapping: Record<string, FieldKey> = {
-          'name': 'nombre',
-          'apellido_p': 'apellidoP',
-          'apellido_m': 'apellidoM',
+          'name': 'responsable',
+          'apellido_p': 'responsable',
+          'apellido_m': 'responsable',
           'email': 'email',
           'telefono': 'telefono',
-          'code': 'codigoInvitacion',
           'password': 'password',
+          'name_group': 'agrupacion',
         };
         
         Object.keys(errorsData).forEach((backendKey) => {
@@ -356,11 +269,6 @@ export default function RegisterScreen({ navigation, route }: Props): JSX.Elemen
         
         if (Object.keys(fieldErrors).length > 0) {
           setErrors((prev) => ({ ...prev, ...fieldErrors }));
-          const touchedState: TouchedState = {};
-          Object.keys(fieldErrors).forEach((key) => {
-            touchedState[key as FieldKey] = true;
-          });
-          setTouched((prev) => ({ ...prev, ...touchedState }));
           
           Alert.alert(
             '❌ Errores en el formulario',
@@ -375,10 +283,7 @@ export default function RegisterScreen({ navigation, route }: Props): JSX.Elemen
       let errorMessage = 'Ocurrió un error inesperado. Por favor, intenta nuevamente.';
       let errorTitle = '❌ Error';
       
-      if (error.response?.status === 422) {
-        errorTitle = '❌ Error de validación';
-        errorMessage = error.response.data?.msg || 'Por favor, verifica los datos ingresados.';
-      } else if (error.response?.status === 409) {
+      if (error.response?.status === 409) {
         errorTitle = '❌ Conflicto';
         errorMessage = error.response.data?.msg || 'Ya existe un registro con estos datos.';
       } else if (error.msg) {
@@ -398,21 +303,58 @@ export default function RegisterScreen({ navigation, route }: Props): JSX.Elemen
     }
   };
 
+  // ========== RENDER INPUT CON SELECT PARA CIUDAD ==========
   const renderInput = (
     key: FieldKey,
     icon: string,
     placeholder: string,
     options?: {
       secure?: boolean;
-      toggleSecure?: () => void;
       isSecureVisible?: boolean;
+      onToggleSecure?: () => void;
       keyboardType?: 'default' | 'email-address' | 'phone-pad';
-      maxLength?: number;
-      autoCapitalize?: 'none' | 'words' | 'characters';
+      isPicker?: boolean;
     }
   ) => {
     const isFocused = focusedField === key;
-    const error = touched[key] ? errors[key] : undefined;
+    const error = errors[key];
+
+    if (key === 'ciudad') {
+      return (
+        <View style={styles.fieldBlock} key={key}>
+          <Pressable
+            style={[
+              styles.inputContainer,
+              isFocused && styles.inputFocused,
+              !!error && styles.inputError,
+            ]}
+            onPress={() => setModalVisible(true)}
+          >
+            <Ionicons
+              name={icon as any}
+              size={20}
+              color={error ? '#FF4D4D' : isFocused ? '#FF6B35' : 'rgba(255,255,255,0.5)'}
+              style={styles.inputIcon}
+            />
+            <Text style={[styles.input, styles.pickerText, !form.ciudad && styles.placeholderText]}>
+              {form.ciudad || placeholder}
+            </Text>
+            <Ionicons
+              name="chevron-down"
+              size={20}
+              color="rgba(255,255,255,0.4)"
+              style={styles.pickerIcon}
+            />
+          </Pressable>
+          {!!error && (
+            <View style={styles.errorRow}>
+              <Ionicons name="alert-circle-outline" size={13} color="#FF4D4D" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+        </View>
+      );
+    }
 
     return (
       <View style={styles.fieldBlock} key={key}>
@@ -436,19 +378,14 @@ export default function RegisterScreen({ navigation, route }: Props): JSX.Elemen
             value={form[key]}
             onChangeText={(t) => handleChange(key, t)}
             onFocus={() => setFocusedField(key)}
-            onBlur={() => handleBlur(key)}
+            onBlur={() => setFocusedField(null)}
             secureTextEntry={options?.secure && !options?.isSecureVisible}
             keyboardType={options?.keyboardType ?? 'default'}
-            maxLength={options?.maxLength}
-            autoCapitalize={
-              options?.autoCapitalize ??
-              (options?.keyboardType === 'email-address' ? 'none' : 'words')
-            }
+            autoCapitalize={options?.keyboardType === 'email-address' ? 'none' : 'sentences'}
             autoCorrect={false}
-            autoComplete="off"
           />
-          {options?.toggleSecure && (
-            <Pressable onPress={options.toggleSecure} style={styles.eyeIcon} hitSlop={10}>
+          {options?.secure && (
+            <Pressable onPress={options.onToggleSecure} style={styles.eyeIcon} hitSlop={10}>
               <Ionicons
                 name={options.isSecureVisible ? 'eye-outline' : 'eye-off-outline'}
                 size={20}
@@ -457,29 +394,12 @@ export default function RegisterScreen({ navigation, route }: Props): JSX.Elemen
             </Pressable>
           )}
         </View>
-
         {!!error && (
           <View style={styles.errorRow}>
             <Ionicons name="alert-circle-outline" size={13} color="#FF4D4D" />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
-      </View>
-    );
-  };
-
-  const renderStrength = () => {
-    const score = passwordScore(form.password);
-    const pct = form.password ? (score / 5) * 100 : 0;
-    const label = !form.password ? '' : score <= 2 ? 'Débil' : score <= 4 ? 'Media' : 'Fuerte';
-    const color = score <= 2 ? '#FF4D4D' : score <= 4 ? '#FFB020' : '#2ECC71';
-
-    return (
-      <View style={styles.strengthBlock}>
-        <View style={styles.strengthTrack}>
-          <View style={[styles.strengthFill, { width: `${pct}%`, backgroundColor: color }]} />
-        </View>
-        <Text style={[styles.strengthLabel, { color }]}>{label}</Text>
       </View>
     );
   };
@@ -499,7 +419,7 @@ export default function RegisterScreen({ navigation, route }: Props): JSX.Elemen
           Acepto los{' '}
           <Text
             style={styles.terminosLink}
-            onPress={() => setModalVisible(true)}
+            onPress={() => setModalTerminosVisible(true)}
           >
             Términos y Condiciones
           </Text>
@@ -513,23 +433,23 @@ export default function RegisterScreen({ navigation, route }: Props): JSX.Elemen
     <Modal
       animationType="slide"
       transparent={true}
-      visible={modalVisible}
-      onRequestClose={() => setModalVisible(false)}
+      visible={modalTerminosVisible}
+      onRequestClose={() => setModalTerminosVisible(false)}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Términos y Condiciones</Text>
-            <Pressable onPress={() => setModalVisible(false)} style={styles.modalClose}>
+      <View style={styles.modalOverlayTerminos}>
+        <View style={styles.modalContainerTerminos}>
+          <View style={styles.modalHeaderTerminos}>
+            <Text style={styles.modalTitleTerminos}>Términos y Condiciones</Text>
+            <Pressable onPress={() => setModalTerminosVisible(false)} style={styles.modalCloseTerminos}>
               <Ionicons name="close" size={24} color="#fff" />
             </Pressable>
           </View>
 
-          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-            <View style={styles.modalSection}>
+          <ScrollView style={styles.modalContentTerminos} showsVerticalScrollIndicator={false}>
+            <View style={styles.modalSectionTerminos}>
               <Ionicons name="shield-checkmark" size={24} color="#FF6B35" />
-              <Text style={styles.modalSectionTitle}>Seguridad de tus datos</Text>
-              <Text style={styles.modalText}>
+              <Text style={styles.modalSectionTitleTerminos}>Seguridad de tus datos</Text>
+              <Text style={styles.modalTextTerminos}>
                 Toda la información que proporcionas en Delivery Sobre Ruedas está 
                 encriptada y protegida con los más altos estándares de seguridad. 
                 Tus datos personales, incluyendo correo electrónico, teléfono y 
@@ -538,67 +458,59 @@ export default function RegisterScreen({ navigation, route }: Props): JSX.Elemen
               </Text>
             </View>
 
-            <View style={styles.modalSection}>
+            <View style={styles.modalSectionTerminos}>
               <Ionicons name="trash-outline" size={24} color="#FF6B35" />
-              <Text style={styles.modalSectionTitle}>Eliminación de cuenta</Text>
-              <Text style={styles.modalText}>
+              <Text style={styles.modalSectionTitleTerminos}>Eliminación de cuenta</Text>
+              <Text style={styles.modalTextTerminos}>
                 Cuando solicitas la eliminación de tu cuenta, todos tus datos 
                 personales son marcados para su eliminación definitiva. 
                 Tus datos permanecerán almacenados de forma temporal durante 
                 un período de 1 año, tiempo durante el cual podrás restaurar 
                 tu cuenta si así lo deseas.
               </Text>
-              <Text style={styles.modalSubText}>
+              <Text style={styles.modalSubTextTerminos}>
                 ⚠️ Transcurrido este período, toda tu información será eliminada 
-                de forma permanente y no podrá ser recuperada.
+                de forma permanente y no podrá ser recuperada. 
               </Text>
-              <Text style={styles.modalSubText_}>
-                              ⚠️ Si solicitaste un servicio adicional como un prestamo y este se encuentra vigente no podras, eliminar tu cuenta hasta saldar tu cuenta con nosotros.
-                            </Text>
+              <Text style={styles.modalSubTextTerminos_}>
+                ⚠️ Si solicitaste un servicio adicional como un prestamo y este se encuentra vigente no podras, eliminar tu cuenta hasta saldar tu cuenta con nosotros.
+              </Text>
             </View>
 
-            <View style={styles.modalSection}>
+            <View style={styles.modalSectionTerminos}>
               <Ionicons name="document-text-outline" size={24} color="#FF6B35" />
-              <Text style={styles.modalSectionTitle}>Política de privacidad</Text>
-              <Text style={styles.modalText}>
+              <Text style={styles.modalSectionTitleTerminos}>Política de privacidad</Text>
+              <Text style={styles.modalTextTerminos}>
                 • Tus datos son utilizados exclusivamente para la operación 
                 de la plataforma Delivery Sobre Ruedas.
               </Text>
-              <Text style={styles.modalText}>
+              <Text style={styles.modalTextTerminos}>
                 • No compartimos tu información con terceros sin tu consentimiento.
               </Text>
-              <Text style={styles.modalText}>
+              <Text style={styles.modalTextTerminos}>
                 • Puedes acceder, modificar o solicitar la eliminación de tus 
                 datos en cualquier momento.
               </Text>
-              <Text style={styles.modalText}>
+              <Text style={styles.modalTextTerminos}>
                 • La seguridad de tu información es nuestra prioridad.
               </Text>
+              
             </View>
 
             <TouchableOpacity
-              style={styles.modalAcceptButton}
+              style={styles.modalAcceptButtonTerminos}
               onPress={() => {
                 setAceptoTerminos(true);
-                setModalVisible(false);
+                setModalTerminosVisible(false);
               }}
             >
-              <Text style={styles.modalAcceptButtonText}>Acepto los términos</Text>
+              <Text style={styles.modalAcceptButtonTextTerminos}>Acepto los términos</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
       </View>
     </Modal>
   );
-
-  const isFormReady = Object.keys(validateAll(form)).length === 0 && aceptoTerminos;
-
-  const rolInfo =
-    rol === 'administrador'
-      ? { label: 'Administrador', icon: 'shield-checkmark', color: '#2196F3' }
-      : rol === 'asociado'
-      ? { label: 'Asociado', icon: 'bicycle', color: '#FF6B35' }
-      : null;
 
   return (
     <ImageBackground source={backgroundImage} style={styles.background} resizeMode="cover">
@@ -623,76 +535,54 @@ export default function RegisterScreen({ navigation, route }: Props): JSX.Elemen
               </Pressable>
 
               <View style={styles.header}>
-                <Text style={styles.title}>Crear cuenta</Text>
-                <Text style={styles.subtitle}>Completa tus datos para registrarte</Text>
-
-                {rolInfo && (
-                  <View style={[styles.roleChip, { borderColor: rolInfo.color + '55', backgroundColor: rolInfo.color + '1A' }]}>
-                    <Ionicons name={rolInfo.icon as any} size={15} color={rolInfo.color} />
-                    <Text style={[styles.roleChipText, { color: rolInfo.color }]}>
-                      Registrándote como {rolInfo.label}
-                    </Text>
-                  </View>
-                )}
+                <View style={styles.logoCircle}>
+                  <Image 
+                    source={require('../../../assets/images/123.png')} 
+                    style={styles.logoImage} 
+                    resizeMode="contain"
+                  />
+                </View>
+                <Text style={styles.title}>Registre su agrupación</Text>
+                <Text style={styles.subtitle}>Completa los datos para continuar</Text>
               </View>
 
               <View style={styles.formContainer}>
-                {renderInput('nombre', 'person-outline', 'Nombre(s)')}
-                {renderInput('apellidoP', 'person-outline', 'Apellido paterno')}
-                {renderInput('apellidoM', 'person-outline', 'Apellido materno')}
-                {renderInput('email', 'mail-outline', 'Correo electrónico', {
-                  keyboardType: 'email-address',
-                  maxLength: LIMITS.email,
-                })}
-                {renderInput('telefono', 'call-outline', 'Teléfono (10 dígitos)', {
-                  keyboardType: 'phone-pad',
-                  maxLength: LIMITS.phone,
-                })}
-                {renderInput('codigoInvitacion', 'ticket-outline', 'Código de invitación (8 caracteres)', {
-                  maxLength: 8,
-                  autoCapitalize: 'characters',
-                })}
+                {renderInput('responsable', 'person-outline', 'Nombre del responsable')}
+                {renderInput('agrupacion', 'business-outline', 'Nombre de la agrupación')}
+                {renderInput('ciudad', 'location-outline', 'Selecciona un estado')}
+                {renderInput('telefono', 'call-outline', 'Teléfono de contacto', { keyboardType: 'phone-pad' })}
+                {renderInput('email', 'mail-outline', 'Correo electrónico', { keyboardType: 'email-address' })}
                 {renderInput('password', 'lock-closed-outline', 'Contraseña', {
                   secure: true,
-                  toggleSecure: () => setShowPassword(!showPassword),
                   isSecureVisible: showPassword,
-                  maxLength: LIMITS.password,
+                  onToggleSecure: () => setShowPassword(!showPassword),
                 })}
-                {renderStrength()}
                 {renderInput('confirmPassword', 'lock-closed-outline', 'Confirmar contraseña', {
                   secure: true,
-                  toggleSecure: () => setShowConfirm(!showConfirm),
                   isSecureVisible: showConfirm,
-                  maxLength: LIMITS.password,
+                  onToggleSecure: () => setShowConfirm(!showConfirm),
                 })}
 
                 {renderTerminos()}
 
-                <Animated.View
-                  style={{ transform: [{ scale: buttonScale }], width: '100%', marginTop: 8 }}
-                >
+                <Animated.View style={{ transform: [{ scale: buttonScale }], width: '100%', marginTop: 8 }}>
                   <Pressable
-                    style={[
-                      styles.registerButton,
-                      (loading || !isFormReady) && styles.disabledButton,
-                    ]}
-                    onPress={handleRegister}
+                    style={[styles.button, (loading || !aceptoTerminos) && styles.buttonDisabled]}
+                    onPress={handleRegistrar}
                     onPressIn={onPressIn}
                     onPressOut={onPressOut}
-                    disabled={loading || !isFormReady}
+                    disabled={loading || !aceptoTerminos}
                   >
                     {loading ? (
                       <>
                         <ActivityIndicator color="#fff" size="small" />
-                        <Text
-                          style={[styles.registerButtonText, { marginLeft: 10, marginRight: 0 }]}
-                        >
+                        <Text style={[styles.buttonText, { marginLeft: 10, marginRight: 0 }]}>
                           REGISTRANDO...
                         </Text>
                       </>
                     ) : (
                       <>
-                        <Text style={styles.registerButtonText}>REGISTRARME</Text>
+                        <Text style={styles.buttonText}>REGISTRARSE</Text>
                         <Ionicons name="arrow-forward" size={22} color="#fff" />
                       </>
                     )}
@@ -713,11 +603,78 @@ export default function RegisterScreen({ navigation, route }: Props): JSX.Elemen
         </KeyboardAvoidingView>
       </SafeAreaView>
 
+      {/* ========== MODAL PARA SELECCIONAR ESTADO ========== */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Selecciona un estado</Text>
+              <Pressable onPress={() => setModalVisible(false)} style={styles.modalClose}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </Pressable>
+            </View>
+
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color="rgba(255,255,255,0.4)" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Buscar estado..."
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                value={searchText}
+                onChangeText={setSearchText}
+                autoCapitalize="words"
+              />
+              {searchText.length > 0 && (
+                <Pressable onPress={() => setSearchText('')}>
+                  <Ionicons name="close-circle" size={20} color="rgba(255,255,255,0.4)" />
+                </Pressable>
+              )}
+            </View>
+
+            <FlatList
+              data={filteredEstados}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.estadoItem,
+                    form.ciudad === item && styles.estadoItemSelected,
+                  ]}
+                  onPress={() => selectEstado(item)}
+                >
+                  <Text style={[
+                    styles.estadoText,
+                    form.ciudad === item && styles.estadoTextSelected,
+                  ]}>
+                    {item}
+                  </Text>
+                  {form.ciudad === item && (
+                    <Ionicons name="checkmark-circle" size={20} color="#FF6B35" />
+                  )}
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>No se encontraron estados</Text>
+                </View>
+              }
+              showsVerticalScrollIndicator={false}
+            />
+          </View>
+        </View>
+      </Modal>
+
       {renderTerminosModal()}
     </ImageBackground>
   );
 }
 
+// ========== ESTILOS ==========
 const styles = StyleSheet.create({
   background: { flex: 1, width: '100%', height: '100%' },
   scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10, 10, 20, 0.55)' },
@@ -741,37 +698,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  header: { alignItems: 'center', marginTop: 20 },
+  header: { alignItems: 'center', marginTop: 6 },
+  logoCircle: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: '#FF6B35',
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 12,
+    marginBottom: 16,
+  },
   title: {
-    fontSize: 32,
+    fontSize: 26,
     fontWeight: '800',
     color: '#fff',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 14.5,
     color: 'rgba(255,255,255,0.75)',
-    marginTop: 8,
+    marginTop: 6,
     fontWeight: '400',
     textAlign: 'center',
   },
-  roleChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  roleChipText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-  },
-  formContainer: { width: '100%', marginTop: 28 },
-
+  formContainer: { width: '100%', marginTop: 26 },
   fieldBlock: { width: '100%', marginBottom: 26, position: 'relative' },
   inputContainer: {
     flexDirection: 'row',
@@ -781,6 +740,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
+    minHeight: 52,
   },
   inputFocused: { borderColor: '#FF6B35', backgroundColor: 'rgba(255,107,53,0.08)' },
   inputError: { borderColor: '#FF4D4D', backgroundColor: 'rgba(255,77,77,0.08)' },
@@ -788,7 +748,6 @@ const styles = StyleSheet.create({
   input: { flex: 1, paddingVertical: 15, fontSize: 15.5, color: '#fff' },
   passwordInput: { paddingRight: 40 },
   eyeIcon: { position: 'absolute', right: 16 },
-
   errorRow: {
     position: 'absolute',
     top: '100%',
@@ -799,24 +758,129 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: { color: '#FF4D4D', fontSize: 12, marginLeft: 5, flex: 1 },
-
-  strengthBlock: {
+  button: {
+    backgroundColor: '#FF6B35',
+    paddingVertical: 18,
+    borderRadius: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    height: 18,
-    marginTop: -14,
-    marginBottom: 8,
-    paddingLeft: 4,
+    justifyContent: 'center',
+    width: '100%',
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 10,
   },
-  strengthTrack: {
+  buttonDisabled: { opacity: 0.55 },
+  buttonText: { color: '#fff', fontSize: 17, fontWeight: '700', marginRight: 10, letterSpacing: 2 },
+  loginContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: 22 },
+  loginText: { color: 'rgba(255,255,255,0.6)', fontSize: 14 },
+  loginLink: { color: '#FF6B35', fontSize: 14, fontWeight: '700' },
+  version: {
+    color: 'rgba(255,255,255,0.4)',
+    textAlign: 'center',
+    fontSize: 11,
+    marginTop: 24,
+    letterSpacing: 1,
+    width: '100%',
+  },
+
+  // ========== ESTILOS PARA EL PICKER ==========
+  pickerText: {
     flex: 1,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    overflow: 'hidden',
+    fontSize: 15.5,
+    color: '#fff',
+    paddingVertical: 15,
   },
-  strengthFill: { height: '100%', borderRadius: 2 },
-  strengthLabel: { fontSize: 12, fontWeight: '700', marginLeft: 10, width: 50 },
+  placeholderText: {
+    color: 'rgba(255,255,255,0.4)',
+  },
+  pickerIcon: {
+    marginLeft: 8,
+  },
+
+  // ========== ESTILOS PARA EL MODAL DE ESTADOS ==========
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: '#1C1C28',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: height * 0.7,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  modalClose: {
+    padding: 4,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 12,
+    marginHorizontal: 20,
+    marginVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    fontSize: 15,
+    color: '#fff',
+  },
+  estadoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  estadoItemSelected: {
+    backgroundColor: 'rgba(255,107,53,0.08)',
+  },
+  estadoText: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  estadoTextSelected: {
+    color: '#FF6B35',
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    paddingVertical: 30,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 14,
+  },
+  logoImage: {
+    width: '88%',
+    height: '88%',
+    borderRadius: 58,
+  },
 
   // ========== ESTILOS PARA TÉRMINOS Y CONDICIONES ==========
   terminosContainer: {
@@ -854,55 +918,21 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 
-  registerButton: {
-    backgroundColor: '#FF6B35',
-    paddingVertical: 18,
-    borderRadius: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    shadowColor: '#FF6B35',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  disabledButton: { opacity: 0.55 },
-  registerButtonText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '700',
-    marginRight: 10,
-    letterSpacing: 2,
-  },
-  loginContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: 22 },
-  loginText: { color: 'rgba(255,255,255,0.6)', fontSize: 14 },
-  loginLink: { color: '#FF6B35', fontSize: 14, fontWeight: '700' },
-  version: {
-    color: 'rgba(255,255,255,0.4)',
-    textAlign: 'center',
-    fontSize: 11,
-    marginTop: 24,
-    letterSpacing: 1,
-    width: '100%',
-  },
-
-  // ========== ESTILOS PARA EL MODAL ==========
-  modalOverlay: {
+  // ========== ESTILOS PARA EL MODAL DE TÉRMINOS ==========
+  modalOverlayTerminos: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContainer: {
+  modalContainerTerminos: {
     backgroundColor: '#1C1C28',
     borderRadius: 24,
     width: '90%',
     maxHeight: '80%',
     paddingBottom: 20,
   },
-  modalHeader: {
+  modalHeaderTerminos: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -911,35 +941,35 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.08)',
   },
-  modalTitle: {
+  modalTitleTerminos: {
     fontSize: 18,
     fontWeight: '700',
     color: '#fff',
   },
-  modalClose: {
+  modalCloseTerminos: {
     padding: 4,
   },
-  modalContent: {
+  modalContentTerminos: {
     paddingHorizontal: 20,
     paddingTop: 16,
   },
-  modalSection: {
+  modalSectionTerminos: {
     marginBottom: 24,
   },
-  modalSectionTitle: {
+  modalSectionTitleTerminos: {
     fontSize: 16,
     fontWeight: '700',
     color: '#fff',
     marginTop: 8,
     marginBottom: 6,
   },
-  modalText: {
+  modalTextTerminos: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.7)',
     lineHeight: 20,
     marginBottom: 4,
   },
-  modalSubText: {
+  modalSubTextTerminos: {
     fontSize: 13,
     color: '#FF6B35',
     fontWeight: '600',
@@ -947,7 +977,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     paddingLeft: 4,
   },
-    modalSubText_: {
+    modalSubTextTerminos_: {
     fontSize: 13,
     color: '#ff3535',
     fontWeight: '600',
@@ -955,7 +985,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     paddingLeft: 4,
   },
-  modalAcceptButton: {
+  modalAcceptButtonTerminos: {
     backgroundColor: '#FF6B35',
     paddingVertical: 14,
     borderRadius: 12,
@@ -963,7 +993,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 12,
   },
-  modalAcceptButtonText: {
+  modalAcceptButtonTextTerminos: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',

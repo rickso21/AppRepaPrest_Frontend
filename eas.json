@@ -1,0 +1,16 @@
+{
+  "build": {
+    "preview": {
+      "android": {
+        "buildType": "apk",
+        "credentialsSource": "remote",
+        "withoutCredentials": true,
+        "gradleCommand": ":app:assembleRelease"
+      },
+      "env": {
+        "NPM_CONFIG_USERCONFIG": "/dev/null",
+        "GRADLE_OPTS": "-Xmx4096m"
+      }
+    }
+  }
+}

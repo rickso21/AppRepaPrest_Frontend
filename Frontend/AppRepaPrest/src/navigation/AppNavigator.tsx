@@ -13,13 +13,26 @@ import SolicitudPrestamo from '../screens/Prestamos/SolicitudPrestamo/SolicitudP
 import Cargando from '../screens/Prestamos/Cargando/Cargando';
 import MontoAprobado from '../screens/Prestamos/MontoAprobado/MontoAprobado';
 import PrestamoActivo from '../screens/Prestamos/PrestamoActivo/PrestamoActivo';
+import RegisterAgrupacion from '../screens/RegisterAgrupacion/RegisterAgrupacion';
+import RegisterAgrupacionSuccess from '../screens/RegisterAgrupacionSuccess/RegisterAgrupacionSuccess';
+import RegisterSuccess from '../screens/RegisterSuccess/RegisterSuccess';
+import RoleSelection from '../screens/RoleSelection/RoleSelection';
+import ChatScreen from '../screens/Comunidad/ChatScreen';
 
 export type RootStackParamList = {
   Welcome: undefined;
   Login: undefined;
-  Register: undefined;
+  Register: { rol?: 'asociado' | 'administrador' };
   ForgotPassword: undefined;
+  RoleSelection: undefined;
+  RegisterAgrupacion: undefined;
+  RegisterAgrupacionSuccess: { agrupacion: string; codigo: string };
+  RegisterSuccess: { nombre?: string };
+
+
   ResetPassword: { email: string };
+
+
 
 
   Home: {
@@ -41,6 +54,9 @@ export type RootStackParamList = {
     userName: string;
     montoPreaprobado: number;
   };
+
+  ChatScreen: undefined;
+
 
   Cargando: {
     userId: string;
@@ -164,6 +180,42 @@ export default function AppNavigator(): JSX.Element {
           options={{ headerShown: false }}
 
         />
+
+           <Stack.Screen 
+          name="RoleSelection" 
+          component={RoleSelection}
+          options={{
+            animation: 'slide_from_right',
+          }}
+        />
+
+          <Stack.Screen 
+          name="RegisterAgrupacion" 
+          component={RegisterAgrupacion}
+          options={{
+            animation: 'slide_from_right',
+          }}
+        />
+
+         <Stack.Screen 
+          name="RegisterAgrupacionSuccess" 
+          component={RegisterAgrupacionSuccess}
+          options={{
+            animation: 'slide_from_right',
+          }}
+        />
+
+         <Stack.Screen 
+          name="RegisterSuccess"
+          component={RegisterSuccess}
+          options={{
+            animation: 'slide_from_right',
+          }}
+        />
+
+         <Stack.Screen name="ChatScreen" 
+          component={ChatScreen}
+          />
       </Stack.Navigator>
     </NavigationContainer>
   );

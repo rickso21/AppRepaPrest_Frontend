@@ -53,7 +53,7 @@ export default function LoginScreen({ navigation }: Props): JSX.Element {
   const onPressOut = () =>
     Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true }).start();
 
-/*
+
 const handleLogin = async (): Promise<void> => {
   if (!email.trim() || !password.trim()) {
     Alert.alert('Error', 'Por favor completa todos los campos');
@@ -78,14 +78,16 @@ const handleLogin = async (): Promise<void> => {
     });
 
     if (response.res === true) {
-      Alert.alert('Éxito', response.msg || '¡Bienvenido!');
+
+      const msg = '¡Delivery Sobre Ruedas! esta contigo a las 24hrs';
+      Alert.alert('Gracias por elegirnos', msg);
       navigation.navigate('Home', {
         userId: response.user.id.toString(),
-        userName: response.user.nombre,
+        nombre: response.user.nombre,
       });
     } else {
-      Alert.alert('Error', response.msg || 'Credenciales incorrectas');
-    }
+    const msg = String(response.msg || 'Credenciales incorrectas');
+      Alert.alert('Error', msg);    }
   } catch (error: any) {
     console.error('Error en login:', error);
     
@@ -104,8 +106,9 @@ const handleLogin = async (): Promise<void> => {
   }
 };
 
-*/
+
   
+/*
   const handleLogin = (): void => {
     if (!email.trim() || !password.trim()) {
       Alert.alert('Error', 'Por favor completa todos los campos');
@@ -133,7 +136,7 @@ const handleLogin = async (): Promise<void> => {
       });
     }, 1500);
   };
-  
+  */
 
   return (
     <ImageBackground source={backgroundImage} style={styles.background} resizeMode="cover">
@@ -172,7 +175,7 @@ const handleLogin = async (): Promise<void> => {
                     resizeMode="contain"
                   />
                 </View>
-                <Text style={styles.title}>Delivery Security</Text>
+                <Text style={styles.title}>Delivery Sobre Ruedas</Text>
                 <Text style={styles.subtitle}>Inicia sesión para continuar</Text>
               </View>
 
@@ -276,18 +279,19 @@ const handleLogin = async (): Promise<void> => {
                 </Animated.View>
 
                 {/* Registro */}
-                <View style={styles.registerContainer}>
+                 <View style={styles.registerContainer}>
                   <Text style={styles.registerText}>¿No tienes cuenta? </Text>
                   <Pressable
-                    onPress={() => navigation.navigate('Register')}
+                    onPress={() => navigation.navigate('RoleSelection')}
                     hitSlop={8}
+                    disabled={loading}
                   >
                     <Text style={styles.registerLink}>Regístrate</Text>
                   </Pressable>
                 </View>
               </View>
 
-              <Text style={styles.version}>v1.0.0</Text>
+              <Text style={styles.version}>Beta v1.0.0</Text>
             </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
