@@ -1,0 +1,117 @@
+{
+  "expo": {
+    "name": "Delivery Sobre Ruedas",
+    "slug": "DeliverySobreRuedas",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/Delivery_Noviembre.png",
+    "scheme": "deliverysobreruedas",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rickso100tesxa.DeliverySobreRuedas",
+      "bitcode": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Permitir a $(PRODUCT_NAME) usar tu ubicación para seguimiento en tiempo real.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Permitir a $(PRODUCT_NAME) usar tu ubicación para seguimiento en tiempo real.",
+        "NSMicrophoneUsageDescription": "Permite a $(PRODUCT_NAME) grabar mensajes de voz en las publicaciones."
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyAK_F0E0WHhtGzlrWvC4_EAlxOSUmP8ZN4"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/Delivery_Noviembre.png",
+        "backgroundColor": "#ffffff"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.rickso100tesxa.DeliverySobreRuedas",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.CAMERA",
+        "android.permission.INTERNET",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WAKE_LOCK",
+        "android.permission.BLUETOOTH",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.ACCESS_WIFI_STATE"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/Delivery_Noviembre.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-dev-client",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "La app necesita acceso a tus fotos para publicarlas.",
+          "cameraPermission": "La app necesita acceso a tu cámara."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/fondo.jpg",
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "@livekit/react-native-expo-plugin",
+      "@config-plugins/react-native-webrtc",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permitir a $(PRODUCT_NAME) usar tu ubicación para seguimiento en tiempo real.",
+          "locationAlwaysPermission": "Permitir a $(PRODUCT_NAME) usar tu ubicación en segundo plano.",
+          "locationWhenInUsePermission": "Permitir a $(PRODUCT_NAME) usar tu ubicación mientras usas la app.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
+        }
+      ],
+      [
+        "react-native-maps",
+        {
+          "androidGoogleMapsApiKey": "AIzaSyAK_F0E0WHhtGzlrWvC4_EAlxOSUmP8ZN4",
+          "iosGoogleMapsApiKey": "AIzaSyAK_F0E0WHhtGzlrWvC4_EAlxOSUmP8ZN4"
+        }
+      ],
+      "expo-status-bar",
+      "expo-font",
+      "expo-secure-store",
+
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Permite a $(PRODUCT_NAME) grabar mensajes de voz en las publicaciones."
+        }
+      ],
+
+      "expo-asset",
+      "expo-build-properties",
+      "expo-video",
+      "expo-notifications",
+      "react-native-compressor"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "43f9cba7-8962-449d-b6af-d8c0b2001c74"
+      }
+    },
+    "owner": "rickso100tesxa"
+  }
+}

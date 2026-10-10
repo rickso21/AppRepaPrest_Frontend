@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "494864662243",
+    "project_id": "deliverysobreruedas",
+    "storage_bucket": "deliverysobreruedas.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:494864662243:android:c0e7e321da20d33543cfd6",
+        "android_client_info": {
+          "package_name": "com.rickso100tesxa.DeliverySobreRuedas"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBYsBU36x787xQR26XHKWp9_3RlpmnzWcA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
