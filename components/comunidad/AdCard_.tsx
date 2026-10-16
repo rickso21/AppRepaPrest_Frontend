@@ -1,16 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
 import {
-  Alert,
-  Image,
-  Linking,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    Linking,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import type { Ad } from "../../hooks/comunidad/useAds";
 
-const BRAND = "#FF6B35";
+const BRAND = "#940000";
 const CARD = "#16161F";
 const BORDER = "rgba(255,255,255,0.07)";
 

@@ -90,7 +90,7 @@ export default function PrestamoRechazadoView({
           activeOpacity={0.85}
         >
           <LinearGradient
-            colors={intentado ? ["#4ADE80", "#22C55E"] : ["#FF6B35", "#E8552E"]}
+            colors={intentado ? ["#4ADE80", "#22C55E"] : ["#940000", "#E8552E"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.buttonGradient}
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,107,53,0.2)",
   },
   motivationTitle: {
-    color: "#FF6B35",
+    color: "#940000",
     fontSize: 14,
     fontWeight: "800",
     marginBottom: 8,

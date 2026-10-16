@@ -15,7 +15,7 @@ import {
 } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const BRAND = "#FF6B35";
+const BRAND = "#940000";
 const CARD = "#16161F";
 const BORDER = "rgba(255,255,255,0.07)";
 

@@ -149,9 +149,9 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   cardSelected: {
-    borderColor: "#FF6B35",
+    borderColor: "#940000",
     backgroundColor: "rgba(255,107,53,0.10)",
-    shadowColor: "#FF6B35",
+    shadowColor: "#940000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: "#FF6B35",
+    backgroundColor: "#940000",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: -0.5,
   },
-  amountSelected: { color: "#FF6B35" },
+  amountSelected: { color: "#940000" },
 
   // DIVIDER
   divider: {

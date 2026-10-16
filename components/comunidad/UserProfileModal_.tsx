@@ -1,20 +1,20 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
+    ActivityIndicator,
+    Image,
+    Modal,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
 
 import { userService, type PerfilPublico } from "@/services/user/userService";
 import MediaViewerModal from "./MediaViewerModal";
 
-const BRAND = "#FF6B35";
+const BRAND = "#940000";
 const CARD = "#16161F";
 const BORDER = "rgba(255,255,255,0.07)";
 const PORTADA_HEIGHT = 160;

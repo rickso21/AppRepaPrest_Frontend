@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import type { Comentario } from "../../hooks/comunidad/useComunidad";
 
-const BRAND = "#FF6B35";
+const BRAND = "#940000";
 const BORDER = "rgba(255,255,255,0.07)";
 
 type Props = {

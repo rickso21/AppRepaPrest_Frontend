@@ -1,15 +1,28 @@
+// config/ApiConfig.ts
 export const API_CONFIG = {
-  // ⚠️ NO TOCAR: lo usan todos los componentes existentes
-  baseURL: "http://192.168.1.11:8000",
+  // API HTTP (producción)
+  baseURL: "https://api.deliverysobreruedas.com",
+  // baseURL: "http://192.168.1.24:8000",
 
-  // 🔑 Reverb
+  // Reverb / WebSocket
   reverbKey: "r4rwgflbhgo294yupife",
-  reverbPort: 8080,
-  reverbUseTLS: false,
 
-  // Endpoint de broadcasting/auth (SIN /api, va directo en la raíz)
-  // Se usa SOLO en echo.tsx para autorizar canales privados.
-  // OJO: se arma a partir de baseURL para no duplicar la IP.
+  // Host público del WS (mismo dominio que la API, path /app/ vía nginx)
+  //wsHost: "api.deliverysobreruedas.com",
+  // wsHost: "http://192.168.1.24:8000",
+  wsHost: "api.deliverysobreruedas.com",
+
+  wsPort: 443, // nginx hace el upgrade por 443 (WSS)
+  wssPort: 443,
+  reverbUseTLS: true,
+  //reverbUseTLS: true, // fuerza wss://
+  // wsPort: 8080, // puerto real de Reverb (por defecto 8080)
+  //wssPort: 8080,
+  //reverbUseTLS: false, // HTTP local → ws://
+
+  enabledTransports: ["ws", "wss"], // 👈 permite ambos
+  disableStats: true, // 👈 evita peticiones a pusher.com
+
   get broadcastingAuthUrl() {
     return `${this.baseURL}/broadcasting/auth`;
   },

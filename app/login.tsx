@@ -88,14 +88,17 @@ export default function LoginScreen(): JSX.Element {
       const rol = Number(response.user.rol_id);
 
       if (response.res === true && response.token) {
+        /*
         Alert.alert(
           "Gracias por elegirnos",
           "¡Delivery Sobre Ruedas! está contigo a las 24hrs",
         );
 
+        */
         if (rol === 3 || rol === 5) {
+          /*
           Alert.alert("Bienvenido Asesor", "Panel de gestión de préstamos");
-
+*/
           router.replace({
             pathname: "/asesor/panel",
             params: {
@@ -161,6 +164,7 @@ export default function LoginScreen(): JSX.Element {
       source={backgroundImage}
       style={styles.background}
       resizeMode="cover"
+      imageStyle={{ opacity: 0.55 }}
     >
       <StatusBar style="light" />
       <View style={styles.scrim} />
@@ -216,12 +220,12 @@ export default function LoginScreen(): JSX.Element {
                   <Ionicons
                     name="mail-outline"
                     size={20}
-                    color={focusedField === "email" ? "#ff3535" : "#888"} // 👈 antes rgba(255,255,255,0.5)
+                    color={focusedField === "email" ? "#940000" : "#888"}
                     style={styles.inputIcon}
                   />
                   <TextInput
                     style={styles.input}
-                    placeholder="Correo o número de teléfono"
+                    placeholder="Correo o número de celular"
                     placeholderTextColor="rgba(0,0,0,0.4)"
                     value={email}
                     onChangeText={setEmail}
@@ -243,7 +247,7 @@ export default function LoginScreen(): JSX.Element {
                   <Ionicons
                     name="lock-closed-outline"
                     size={20}
-                    color={focusedField === "password" ? "#ff3535" : "#888"} // 👈 antes rgba(255,255,255,0.5)
+                    color={focusedField === "password" ? "#940000" : "#888"}
                     style={styles.inputIcon}
                   />
                   <TextInput
@@ -329,7 +333,7 @@ export default function LoginScreen(): JSX.Element {
                   </Pressable>
                 </View>
 
-                {/*NUEVO: Promocionar mi negocio */}
+                {/* Promocionar mi negocio */}
                 <Pressable
                   style={({ pressed }) => [
                     styles.promoteButton,
@@ -342,7 +346,7 @@ export default function LoginScreen(): JSX.Element {
                     <Ionicons
                       name="storefront-outline"
                       size={18}
-                      color="#ff3535"
+                      color="#940000"
                     />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -353,7 +357,7 @@ export default function LoginScreen(): JSX.Element {
                       Publica tus anuncios y llega a más clientes
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#ff3535" />
+                  <Ionicons name="chevron-forward" size={18} color="#940000" />
                 </Pressable>
               </View>
 
@@ -368,26 +372,31 @@ export default function LoginScreen(): JSX.Element {
 
 const styles = StyleSheet.create({
   background: { flex: 1, width: "100%", height: "100%" },
+
   scrim: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(10, 10, 20, 0.55)",
+    backgroundColor: "rgba(10, 10, 20, 0.75)",
   },
+
   safeArea: { flex: 1, backgroundColor: "transparent" },
   keyboardView: { flex: 1 },
+
   scrollContainer: {
     flexGrow: 1,
-    minHeight: height,
-    paddingHorizontal: 28,
-    paddingVertical: Platform.OS === "ios" ? 50 : 36,
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === "ios" ? 20 : 24,
+    paddingBottom: 40,
     alignItems: "center",
+    justifyContent: "center",
   },
+
   container: {
-    flex: 1,
     width: "100%",
     maxWidth: 500,
-    justifyContent: "space-between",
-    paddingBottom: 50,
+    // ❌ quitado flex: 1 y justifyContent: "space-between"
+    // ✅ ahora el contenido fluye naturalmente
   },
+
   backButton: {
     width: 46,
     height: 46,
@@ -397,44 +406,54 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.15)",
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 12,
   },
-  header: { alignItems: "center", marginTop: 6 },
+
+  header: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+
   logoCircle: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: "rgba(255,255,255,0.95)",
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "#ffffff",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
     borderWidth: 3,
-    borderColor: "#ff3535",
-    shadowColor: "#ff3535",
+    borderColor: "#940000",
+    shadowColor: "#940000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
     shadowRadius: 20,
     elevation: 12,
   },
-  logoImage: { width: "88%", height: "88%", borderRadius: 58 },
+
+  logoImage: { width: "88%", height: "88%", borderRadius: 53 },
+
   title: {
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: "800",
     color: "#fff",
-    marginTop: 18,
+    marginTop: 16,
     letterSpacing: 0.5,
     textAlign: "center",
   },
+
   subtitle: {
-    fontSize: 15,
-    color: "rgba(255,255,255,0.75)",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.85)",
     marginTop: 6,
     fontWeight: "400",
     textAlign: "center",
   },
+
+  //FORMULARIO (con espaciado correcto)
   formContainer: {
     width: "100%",
-    marginVertical: 20,
-    backgroundColor: "#ffffffcc",
+    backgroundColor: "#ffffff",
     borderRadius: 24,
     padding: 20,
     shadowColor: "#000",
@@ -443,105 +462,129 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
+
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f5f5f5", // 👈 gris muy claro
+    backgroundColor: "#f5f5f5",
     borderRadius: 16,
     marginBottom: 14,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: "#e0e0e0", // 👈 borde gris claro
+    borderColor: "#e0e0e0",
   },
+
   inputFocused: {
-    borderColor: "#ff3535",
-    backgroundColor: "#fff5f0", // 👈 blanco con tinte rojo al enfocar
+    borderColor: "#940000",
+    backgroundColor: "#fff5f0",
   },
+
   inputIcon: { marginRight: 12 },
+
   input: {
     flex: 1,
-    paddingVertical: 16,
-    fontSize: 15.5,
-    color: "#1a1a1a", // 👈 texto oscuro
+    paddingVertical: 14,
+    fontSize: 15,
+    color: "#1a1a1a",
   },
+
   passwordInput: { paddingRight: 40 },
-  eyeIcon: { position: "absolute", right: 16 },
+
+  eyeIcon: {
+    position: "absolute",
+    right: 16,
+    padding: 4,
+  },
+
   forgotPasswordContainer: {
     alignItems: "flex-end",
-    marginBottom: 22,
-    marginTop: 2,
+    marginBottom: 18,
+    marginTop: 0,
   },
-  forgotPasswordText: { color: "#ff3535", fontSize: 13.5, fontWeight: "600" },
+
+  forgotPasswordText: {
+    color: "#940000",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+
   loginButton: {
-    backgroundColor: "#ff3535",
-    paddingVertical: 18,
+    backgroundColor: "#c91111",
+    paddingVertical: 16,
     borderRadius: 18,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
-    shadowColor: "#ff3535",
+    shadowColor: "#c91111",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.5,
     shadowRadius: 16,
     elevation: 10,
   },
+
   disabledButton: { opacity: 0.7 },
+
   loginButtonText: {
     color: "#fff",
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "700",
     marginRight: 10,
     letterSpacing: 2,
   },
+
   registerContainer: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 24,
+    marginTop: 18,
   },
-  registerText: { color: "#666", fontSize: 14 }, // 👈 antes rgba(7, 5, 5, 0.6)
-  registerLink: { color: "#ff3535", fontSize: 14, fontWeight: "700" },
+
+  registerText: { color: "#666", fontSize: 14 },
+  registerLink: { color: "#940000", fontSize: 14, fontWeight: "700" },
 
   promoteButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginTop: 20,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     borderRadius: 16,
     backgroundColor: "rgba(255,107,53,0.08)",
     borderWidth: 1.5,
     borderColor: "rgba(255,107,53,0.35)",
     borderStyle: "dashed",
   },
+
   promoteIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: "rgba(255,107,53,0.15)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(255,107,53,0.35)",
   },
+
   promoteTitle: {
-    color: "#ff3535",
-    fontSize: 14.5,
+    color: "#940000",
+    fontSize: 14,
     fontWeight: "800",
     letterSpacing: 0.3,
   },
+
   promoteSubtitle: {
-    color: "#666", // 👈 antes rgba(161, 24, 24, 0.6)
-    fontSize: 11.5,
+    color: "#666",
+    fontSize: 11,
     marginTop: 2,
   },
 
   version: {
-    color: "rgba(255,255,255,0.4)",
+    color: "rgba(255,255,255,0.5)",
     textAlign: "center",
     fontSize: 11,
-    marginTop: 10,
+    marginTop: 20,
     letterSpacing: 1,
     width: "100%",
   },

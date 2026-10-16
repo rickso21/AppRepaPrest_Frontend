@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginBottom: 4,
   },
-  summaryValue: { color: "#FF6B35", fontSize: 20, fontWeight: "800" },
+  summaryValue: { color: "#940000", fontSize: 20, fontWeight: "800" },
   dividerVertical: {
     width: 1,
     height: 32,
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  quincenaText: { color: "#FF6B35", fontSize: 12, fontWeight: "800" },
+  quincenaText: { color: "#940000", fontSize: 12, fontWeight: "800" },
   detailLabel: { color: "#fff", fontSize: 13, fontWeight: "600" },
   detailSubLabel: {
     color: "rgba(255,255,255,0.4)",

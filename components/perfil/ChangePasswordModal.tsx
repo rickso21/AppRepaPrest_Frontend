@@ -15,7 +15,7 @@ import {
 
 import { authService } from "@/services/auth/AuthService";
 
-const BRAND = "#FF6B35";
+const BRAND = "#940000";
 const BG = "#16161F";
 const BORDER = "rgba(255,255,255,0.08)";
 

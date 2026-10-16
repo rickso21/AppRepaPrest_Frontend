@@ -135,8 +135,8 @@ export default function PrestamoActivoView({
           <RefreshControl
             refreshing={refrescando}
             onRefresh={handleRefresh}
-            tintColor="#FF6B35"
-            colors={["#FF6B35"]}
+            tintColor="#ff3535"
+            colors={["#ff3535"]}
             progressBackgroundColor="#16161F"
           />
         }
@@ -153,7 +153,7 @@ export default function PrestamoActivoView({
 
         {/* MONTO */}
         <LinearGradient
-          colors={["#FF6B35", "#E8552E"]}
+          colors={["#ff3535", "#E8552E"]}
           style={styles.amountCard}
         >
           <Text style={styles.amountLabel}>Monto solicitado</Text>
@@ -186,7 +186,7 @@ export default function PrestamoActivoView({
                 { backgroundColor: "rgba(255,107,53,0.15)" },
               ]}
             >
-              <Ionicons name="wallet" size={20} color="#FF6B35" />
+              <Ionicons name="wallet" size={20} color="#ff3535" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.rowLabel}>Saldo pendiente</Text>
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
   detailValue: { color: "#fff", fontSize: 13, fontWeight: "600" },
   button: {
     marginTop: 12,
-    backgroundColor: "#FF6B35",
+    backgroundColor: "#ff3535",
     borderRadius: 16,
     paddingVertical: 18,
     flexDirection: "row",

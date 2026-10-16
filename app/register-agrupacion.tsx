@@ -342,7 +342,7 @@ export default function RegisterAgrupacionScreen(): JSX.Element {
               name={icon as any}
               size={20}
               color={
-                error ? "#ff3535" : isFocused ? "#ff3535" : "rgba(3, 3, 3, 0.5)" // ⚠️ BLANCO TRANSLÚCIDO
+                error ? "#940000" : isFocused ? "#940000" : "rgba(3, 3, 3, 0.5)" // ⚠️ BLANCO TRANSLÚCIDO
               }
               style={styles.inputIcon}
             />
@@ -385,7 +385,7 @@ export default function RegisterAgrupacionScreen(): JSX.Element {
             name={icon as any}
             size={20}
             color={
-              error ? "#ff3535" : isFocused ? "#ff3535" : "rgba(0, 0, 0, 0.5)" // ⚠️ BLANCO TRANSLÚCIDO
+              error ? "#940000" : isFocused ? "#940000" : "rgba(0, 0, 0, 0.5)" // ⚠️ BLANCO TRANSLÚCIDO
             }
             style={styles.inputIcon}
           />
@@ -433,7 +433,7 @@ export default function RegisterAgrupacionScreen(): JSX.Element {
   const renderFotos = () => (
     <View style={styles.photoSection}>
       <View style={styles.photoSectionHeader}>
-        <Ionicons name="images-outline" size={18} color="#ff3535" />
+        <Ionicons name="images-outline" size={18} color="#940000" />
         <Text style={styles.photoSectionTitle}>Fotos (opcional)</Text>
       </View>
 
@@ -446,7 +446,7 @@ export default function RegisterAgrupacionScreen(): JSX.Element {
           {avatarUri ? (
             <Image source={{ uri: avatarUri }} style={styles.avatarPreview} />
           ) : (
-            <Ionicons name="camera-outline" size={28} color="#ff3535" />
+            <Ionicons name="camera-outline" size={28} color="#940000" />
           )}
         </Pressable>
         <View style={{ flex: 1 }}>
@@ -477,7 +477,7 @@ export default function RegisterAgrupacionScreen(): JSX.Element {
           </>
         ) : (
           <View style={styles.portadaPlaceholder}>
-            <Ionicons name="image-outline" size={32} color="#ff3535" />
+            <Ionicons name="image-outline" size={32} color="#940000" />
             <Text style={styles.photoHint}>Toca para elegir portada</Text>
           </View>
         )}
@@ -545,7 +545,7 @@ export default function RegisterAgrupacionScreen(): JSX.Element {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.modalSectionTerminos}>
-              <Ionicons name="shield-checkmark" size={24} color="#FF6B35" />
+              <Ionicons name="shield-checkmark" size={24} color="#940000" />
               <Text style={styles.modalSectionTitleTerminos}>
                 Seguridad de tus datos
               </Text>
@@ -559,7 +559,7 @@ export default function RegisterAgrupacionScreen(): JSX.Element {
             </View>
 
             <View style={styles.modalSectionTerminos}>
-              <Ionicons name="trash-outline" size={24} color="#ff3535" />
+              <Ionicons name="trash-outline" size={24} color="#940000" />
               <Text style={styles.modalSectionTitleTerminos}>
                 Eliminación de cuenta
               </Text>
@@ -585,7 +585,7 @@ export default function RegisterAgrupacionScreen(): JSX.Element {
               <Ionicons
                 name="document-text-outline"
                 size={24}
-                color="#ff3535"
+                color="#940000"
               />
               <Text style={styles.modalSectionTitleTerminos}>
                 Política de privacidad
@@ -830,7 +830,7 @@ export default function RegisterAgrupacionScreen(): JSX.Element {
                     <Ionicons
                       name="checkmark-circle"
                       size={20}
-                      color="#FF6B35"
+                      color="#940000"
                     />
                   )}
                 </TouchableOpacity>
@@ -889,8 +889,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     overflow: "hidden",
     borderWidth: 3,
-    borderColor: "#ff3535",
-    shadowColor: "#ff3535",
+    borderColor: "#940000",
+    shadowColor: "#940000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
     shadowRadius: 20,
@@ -936,11 +936,11 @@ const styles = StyleSheet.create({
     borderColor: "#e0e0e0", // 👈 borde gris claro
   },
   inputFocused: {
-    borderColor: "#ff3535",
+    borderColor: "#940000",
     backgroundColor: "#fff5f0", // 👈 blanco con tinte rojo al enfocar
   },
   inputError: {
-    borderColor: "#ff3535",
+    borderColor: "#940000",
     backgroundColor: "rgba(255,77,77,0.08)",
   },
   inputIcon: { marginRight: 12 },
@@ -961,16 +961,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  errorText: { color: "#ff3535", fontSize: 12, marginLeft: 5, flex: 1 },
+  errorText: { color: "#940000", fontSize: 12, marginLeft: 5, flex: 1 },
   button: {
-    backgroundColor: "#ff3535",
+    backgroundColor: "#940000",
     paddingVertical: 18,
     borderRadius: 18,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
-    shadowColor: "#ff3535",
+    shadowColor: "#940000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.5,
     shadowRadius: 16,
@@ -990,7 +990,7 @@ const styles = StyleSheet.create({
     marginTop: 22,
   },
   loginText: { color: "#666", fontSize: 14 }, // 👈 antes rgba(7, 5, 5, 0.6)
-  loginLink: { color: "#ff3535", fontSize: 14, fontWeight: "700" },
+  loginLink: { color: "#940000", fontSize: 14, fontWeight: "700" },
   version: {
     color: "rgba(255,255,255,0.4)",
     textAlign: "center",
@@ -1059,7 +1059,7 @@ const styles = StyleSheet.create({
   },
   estadoItemSelected: { backgroundColor: "rgba(255,107,53,0.08)" },
   estadoText: { fontSize: 15, color: "rgba(255,255,255,0.8)" },
-  estadoTextSelected: { color: "#ff3535", fontWeight: "600" },
+  estadoTextSelected: { color: "#940000", fontWeight: "600" },
   emptyContainer: { paddingVertical: 30, alignItems: "center" },
   emptyText: { color: "rgba(29, 29, 29, 0.4)", fontSize: 14 },
   terminosContainer: { width: "100%", marginTop: 4, marginBottom: 12 },
@@ -1075,10 +1075,10 @@ const styles = StyleSheet.create({
     marginRight: 12,
     backgroundColor: "rgba(255,255,255,0.05)",
   },
-  checkboxChecked: { backgroundColor: "#ff3535", borderColor: "#ff3535" },
-  terminosText: { fontSize: 13, color: "rgba(255,255,255,0.7)", flex: 1 },
+  checkboxChecked: { backgroundColor: "#ee0a0a", borderColor: "#ee0a0a" },
+  terminosText: { fontSize: 13, color: "rgba(14, 13, 13, 0.7)", flex: 1 },
   terminosLink: {
-    color: "#ff3535",
+    color: "#940000",
     fontWeight: "700",
     textDecorationLine: "underline",
   },
@@ -1123,7 +1123,7 @@ const styles = StyleSheet.create({
   },
   modalSubTextTerminos: {
     fontSize: 13,
-    color: "#ff3535",
+    color: "#940000",
     fontWeight: "600",
     lineHeight: 18,
     marginTop: 6,
@@ -1131,14 +1131,14 @@ const styles = StyleSheet.create({
   },
   modalSubTextTerminos_: {
     fontSize: 13,
-    color: "#ff3535",
+    color: "#940000",
     fontWeight: "600",
     lineHeight: 18,
     marginTop: 6,
     paddingLeft: 4,
   },
   modalAcceptButtonTerminos: {
-    backgroundColor: "#ff3535",
+    backgroundColor: "#940000",
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",

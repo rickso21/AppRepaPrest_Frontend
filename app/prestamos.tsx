@@ -17,6 +17,9 @@ import {
 } from "../services/prestamos/prestamoValidator";
 
 export type RefreshOptions = { silencioso?: boolean };
+type EstadoSolicitud = "solicitado" | "aprobado" | "rechazado";
+
+const DURACION_TRANSICION_MS = 4500; // ⏱️ duración de la celebración
 
 export default function PrestamosScreen() {
   const isFocused = useIsFocused();
@@ -28,8 +31,20 @@ export default function PrestamosScreen() {
   const [usuarioId, setUsuarioId] = useState<number>(0);
   const [modalAbierto, setModalAbierto] = useState(false);
 
+  const [estadoTransicion, setEstadoTransicion] =
+    useState<EstadoSolicitud | null>(null);
+
   const validandoRef = useRef(false);
   const tieneDatosRef = useRef(false);
+  const estadoAnteriorRef = useRef<string | null>(null);
+  const timeoutTransicionRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  const estadoTransicionRef = useRef<EstadoSolicitud | null>(null);
+  useEffect(() => {
+    estadoTransicionRef.current = estadoTransicion;
+  }, [estadoTransicion]);
 
   // USUARIO
   useEffect(() => {
@@ -42,12 +57,72 @@ export default function PrestamosScreen() {
     tieneDatosRef.current = !!resultado;
   }, [resultado]);
 
+  // 🎬 DETECTAR TRANSICIÓN DE ESTADO
+  useEffect(() => {
+    if (!resultado) return;
+
+    const estadoActual = resultado.estado;
+    const anterior = estadoAnteriorRef.current;
+
+    console.log("[PrestamosScreen] 🔔 resultado cambió:", {
+      anterior,
+      actual: estadoActual,
+      folio: resultado.prestamo?.folio,
+      tienePrestamo: !!resultado.prestamo,
+    });
+
+    if (
+      anterior === "solicitado" &&
+      (estadoActual === "aprobado" || estadoActual === "rechazado")
+    ) {
+      console.log("[PrestamosScreen] 🎬 INICIANDO TRANSICIÓN:", estadoActual);
+      setEstadoTransicion(estadoActual);
+
+      if (timeoutTransicionRef.current) {
+        clearTimeout(timeoutTransicionRef.current);
+      }
+
+      timeoutTransicionRef.current = setTimeout(() => {
+        console.log("[PrestamosScreen] ⏹️ Fin transición");
+        setEstadoTransicion(null);
+        timeoutTransicionRef.current = null;
+      }, DURACION_TRANSICION_MS);
+    }
+
+    estadoAnteriorRef.current = estadoActual;
+  }, [resultado]);
+
+  // 🧹 Cleanup
+  useEffect(() => {
+    return () => {
+      if (timeoutTransicionRef.current) {
+        clearTimeout(timeoutTransicionRef.current);
+      }
+    };
+  }, []);
+
   const revalidar = useCallback(
     async (opts?: RefreshOptions): Promise<void> => {
       const silencioso = opts?.silencioso ?? false;
 
-      // Evita doble ejecución simultánea
-      if (validandoRef.current) return;
+      if (estadoTransicionRef.current !== null) {
+        console.log(
+          "[PrestamosScreen] ⏸️ transición activa, se ignora revalidar",
+        );
+        return;
+      }
+
+      console.log(
+        "[PrestamosScreen] 🔄 revalidar llamado, silencioso:",
+        silencioso,
+      );
+
+      if (validandoRef.current) {
+        console.log(
+          "[PrestamosScreen] ⚠️ ya hay una validación en curso, se ignora",
+        );
+        return;
+      }
       validandoRef.current = true;
 
       if (!silencioso) {
@@ -60,9 +135,14 @@ export default function PrestamosScreen() {
 
       try {
         const res = await PrestamoValidator.validarEstado();
+        console.log("[PrestamosScreen] ✅ respuesta backend:", {
+          estado: res?.estado,
+          folio: res?.prestamo?.folio,
+          mensaje: res?.mensaje,
+        });
         setResultado(res);
       } catch (error) {
-        // silencioso — el resultado queda como estaba
+        console.log("[PrestamosScreen] ❌ error validando:", error);
       } finally {
         setLoading(false);
         setRefrescando(false);
@@ -76,6 +156,7 @@ export default function PrestamosScreen() {
     if (!isFocused) return;
     if (modalAbierto) return;
 
+    console.log("[PrestamosScreen] 👁️ focus activo, revalidando...");
     revalidar();
   }, [isFocused, modalAbierto, revalidar]);
 
@@ -114,14 +195,26 @@ export default function PrestamosScreen() {
       );
     }
 
-    // SOLICITADO
-    if (resultado.estado === "solicitado") {
+    // 🎬 SOLICITADO o TRANSICIÓN
+    if (resultado.estado === "solicitado" || estadoTransicion !== null) {
+      const estadoParaHijo: EstadoSolicitud = estadoTransicion ?? "solicitado";
+      const enTransicion = estadoTransicion !== null;
+
+      console.log(
+        "[PrestamosScreen] 🎨 render SolicitudEnviadaView con estado:",
+        estadoParaHijo,
+        "enTransicion:",
+        enTransicion,
+      );
+
       return (
         <SolicitudEnviadaView
+          key="solicitud-enviada-view"
           folio={resultado.prestamo?.folio ?? "PRE-XXXX"}
           montoSolicitado={resultado.prestamo?.montoSolicitado ?? 0}
           pagoQuincenal={resultado.prestamo?.cuotaQuincenal ?? 0}
           numeroPagos={resultado.prestamo?.quincenas ?? 0}
+          estadoActual={estadoParaHijo}
           onRefresh={revalidar}
         />
       );
@@ -129,6 +222,7 @@ export default function PrestamosScreen() {
 
     // APROBADO
     if (resultado.estado === "aprobado" && resultado.prestamo) {
+      console.log("[PrestamosScreen] 🎨 render PrestamoAprobadoView");
       return (
         <PrestamoAprobadoView
           prestamo={resultado.prestamo}
@@ -141,6 +235,7 @@ export default function PrestamosScreen() {
 
     // ACTIVO
     if (resultado.estado === "activo" && resultado.prestamo) {
+      console.log("[PrestamosScreen] 🎨 render PrestamoActivoView");
       return (
         <PrestamoActivoView
           prestamo={resultado.prestamo}
@@ -153,6 +248,7 @@ export default function PrestamosScreen() {
 
     // RECHAZADO
     if (resultado.estado === "rechazado") {
+      console.log("[PrestamosScreen] 🎨 render PrestamoRechazadoView");
       return (
         <PrestamoRechazadoView
           mensaje={resultado.mensaje}
@@ -167,12 +263,22 @@ export default function PrestamosScreen() {
         setTimeout(() => revalidar({ silencioso: true }), 500);
         return <LoadingState mensaje="Actualizando tu línea de crédito..." />;
       }
-      return <PrestamosSolicitudView lineaCredito={resultado.lineaCredito} />;
+      return (
+        <PrestamosSolicitudView
+          lineaCredito={resultado.lineaCredito}
+          onRefresh={revalidar}
+        />
+      );
     }
 
     // LÍNEA DISPONIBLE
     if (resultado.estado === "linea_disponible" && resultado.lineaCredito) {
-      return <PrestamosSolicitudView lineaCredito={resultado.lineaCredito} />;
+      return (
+        <PrestamosSolicitudView
+          lineaCredito={resultado.lineaCredito}
+          onRefresh={revalidar}
+        />
+      );
     }
 
     return <LoadingState mensaje="Cargando información..." />;
@@ -185,7 +291,7 @@ export default function PrestamosScreen() {
       {refrescando && (
         <View style={styles.overlay} pointerEvents="auto">
           <View style={styles.overlayCard}>
-            <ActivityIndicator color="#FF6B35" size="large" />
+            <ActivityIndicator color="#940000" size="large" />
             <Text style={styles.overlayText}>Actualizando...</Text>
           </View>
         </View>
@@ -195,10 +301,7 @@ export default function PrestamosScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: "#0A0A12",
-  },
+  root: { flex: 1, backgroundColor: "#0A0A12" },
   overlay: {
     position: "absolute",
     top: 0,
@@ -219,11 +322,6 @@ const styles = StyleSheet.create({
     gap: 12,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 10,
   },
   overlayText: {
     color: "#fff",

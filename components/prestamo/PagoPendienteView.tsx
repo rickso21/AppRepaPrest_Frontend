@@ -577,7 +577,7 @@ export default function PagoPendienteView({
             onPress={handleIntentarCambiarMonto}
             activeOpacity={0.85}
           >
-            <Ionicons name="create-outline" size={20} color="#FF6B35" />
+            <Ionicons name="create-outline" size={20} color="#940000" />
             <Text style={styles.secondaryButtonText}>
               Cambiar monto a pagar
             </Text>
@@ -596,7 +596,7 @@ export default function PagoPendienteView({
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Ionicons name="create-outline" size={32} color="#FF6B35" />
+              <Ionicons name="create-outline" size={32} color="#940000" />
             </View>
 
             <Text style={styles.modalTitle}>Cambiar monto</Text>
@@ -943,7 +943,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   secondaryButtonText: {
-    color: "#FF6B35",
+    color: "#940000",
     fontSize: 15,
     fontWeight: "800",
     letterSpacing: 0.5,
@@ -1027,7 +1027,7 @@ const styles = StyleSheet.create({
     borderColor: "#4ADE80",
   },
   inputPrefix: {
-    color: "#FF6B35",
+    color: "#940000",
     fontSize: 22,
     fontWeight: "800",
     marginRight: 8,
@@ -1083,7 +1083,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,107,53,0.2)",
   },
   quickButtonText: {
-    color: "#FF6B35",
+    color: "#940000",
     fontSize: 11,
     fontWeight: "700",
   },
@@ -1104,7 +1104,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.1)",
   },
   modalButtonConfirm: {
-    backgroundColor: "#FF6B35",
+    backgroundColor: "#940000",
   },
   modalButtonDisabled: {
     backgroundColor: "rgba(255,107,53,0.3)",

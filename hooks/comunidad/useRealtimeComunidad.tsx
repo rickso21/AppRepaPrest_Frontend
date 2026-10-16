@@ -10,7 +10,7 @@ type Args = {
 };
 
 const dlog = (...args: any[]) => {
-  if (__DEV__) console.log(...args);
+  //if (__DEV__) console.log(...args);
 };
 
 export function useRealtimeComunidad({
@@ -152,7 +152,7 @@ export function useRealtimeComunidad({
       // Fallback
       fallbackTimeout = setTimeout(() => {
         if (channelsRef.current.size === 0 && !cancelled) {
-          console.warn("[Realtime] timeout — suscribiendo de todas formas");
+          //  console.warn("[Realtime] timeout — suscribiendo de todas formas");
           syncChannels();
         }
       }, 5000);

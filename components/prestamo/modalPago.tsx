@@ -339,7 +339,7 @@ export default function ModalPago({
               <>
                 <View style={styles.headerIcon}>
                   <LinearGradient
-                    colors={["#FF6B35", "#E8552E"]}
+                    colors={["#940000", "#940000"]}
                     style={styles.iconCircle}
                   >
                     <Ionicons name="card" size={40} color="#fff" />
@@ -599,7 +599,7 @@ export default function ModalPago({
                   activeOpacity={0.85}
                 >
                   <LinearGradient
-                    colors={["#FF6B35", "#E8552E"]}
+                    colors={["#940000", "#940000"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.primaryButtonGradient}
@@ -632,9 +632,9 @@ export default function ModalPago({
                   onPress={handleCambiarMonto}
                   activeOpacity={0.85}
                 >
-                  <Ionicons name="create-outline" size={18} color="#FF6B35" />
+                  <Ionicons name="create-outline" size={18} color="#940000" />
                   <Text
-                    style={[styles.secondaryButtonText, { color: "#FF6B35" }]}
+                    style={[styles.secondaryButtonText, { color: "#940000" }]}
                   >
                     Cambiar monto a pagar
                   </Text>
@@ -769,7 +769,7 @@ const styles = StyleSheet.create({
     borderColor: "#4ADE80",
   },
   inputPrefix: {
-    color: "#FF6B35",
+    color: "#940000",
     fontSize: 22,
     fontWeight: "800",
     marginRight: 8,
@@ -801,7 +801,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,107,53,0.2)",
   },
-  quickButtonText: { color: "#FF6B35", fontSize: 11, fontWeight: "700" },
+  quickButtonText: { color: "#940000", fontSize: 11, fontWeight: "700" },
 
   validationBox: {
     flexDirection: "row",
@@ -847,7 +847,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#FF6B35",
+    backgroundColor: "#940000",
     borderRadius: 10,
     padding: 12,
   },
@@ -864,7 +864,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(239,68,68,0.2)",
   },
-  errorText: { color: "#EF4444", fontSize: 12, flex: 1 },
+  errorText: { color: "#940000", fontSize: 12, flex: 1 },
 
   instruccionesBox: {
     backgroundColor: "rgba(255,255,255,0.03)",
@@ -909,7 +909,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
   },
-  buttonConfirm: { backgroundColor: "#FF6B35" },
+  buttonConfirm: { backgroundColor: "#940000" },
   buttonDisabled: { backgroundColor: "rgba(255,107,53,0.3)" },
   buttonTextCancel: {
     color: "rgba(255,255,255,0.6)",

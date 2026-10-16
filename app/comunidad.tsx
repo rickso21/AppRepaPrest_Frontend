@@ -25,7 +25,7 @@ import {
   type Publicacion,
 } from "../hooks/comunidad/useComunidad";
 
-const BRAND = "#ff3535";
+const BRAND = "#940000";
 const BG = "#0F0F17";
 const ADS_EVERY = 4;
 

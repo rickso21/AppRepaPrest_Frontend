@@ -17,8 +17,8 @@ import {
 const { width } = Dimensions.get("window");
 const DRAWER_WIDTH = Math.min(320, width * 0.82);
 
-const BRAND = "#FF6B35";
-const BRAND_DARK = "#C2410C";
+const BRAND = "#c20c0c";
+const BRAND_DARK = "#c20c0c";
 const BRAND_SOFT = "rgba(255,107,53,0.12)";
 const BORDER = "rgba(255,255,255,0.06)";
 

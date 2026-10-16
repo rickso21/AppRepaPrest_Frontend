@@ -24,13 +24,13 @@ export default function SaveButton({
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: "#FF6B35",
+    backgroundColor: "#940000",
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 8,
-    shadowColor: "#FF6B35",
+    shadowColor: "#940000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.45,
     shadowRadius: 14,

@@ -41,7 +41,7 @@ export default function ProfileField({
           !editable
             ? "rgba(255,255,255,0.3)"
             : focused
-              ? "#FF6B35"
+              ? "#940000"
               : "rgba(255,255,255,0.5)"
         }
         style={styles.icon}
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   focused: {
-    borderColor: "#FF6B35",
+    borderColor: "#940000",
     backgroundColor: "rgba(255,107,53,0.08)",
   },
   disabled: {

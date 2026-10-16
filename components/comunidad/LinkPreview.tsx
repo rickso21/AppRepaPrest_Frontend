@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useState } from "react";
 import {
   Image,
   Linking,
@@ -7,6 +8,12 @@ import {
   Text,
   View,
 } from "react-native";
+
+import {
+  buildStaticMapUrl,
+  extraerCoordsMaps,
+  resolverUrlMaps,
+} from "../utils/mapsLink";
 
 const CARD = "#1A1A24";
 const BORDER = "rgba(255,255,255,0.07)";
@@ -20,14 +27,14 @@ export type LinkTipo =
   | "vimeo"
   | "spotify"
   | "linkedin"
-  | "whatsapp";
+  | "whatsapp"
+  | "maps";
 
 type Props = {
   tipo: LinkTipo;
   url: string;
 };
 
-// Configuración visual por tipo de link
 const LINK_CONFIG: Record<
   LinkTipo,
   { icon: string; color: string; label: string }
@@ -41,9 +48,9 @@ const LINK_CONFIG: Record<
   spotify: { icon: "musical-notes", color: "#1DB954", label: "Spotify" },
   linkedin: { icon: "logo-linkedin", color: "#0A66C2", label: "LinkedIn" },
   whatsapp: { icon: "logo-whatsapp", color: "#25D366", label: "WhatsApp" },
+  maps: { icon: "location", color: "#34A853", label: "Google Maps" },
 };
 
-// Extrae el ID de video de YouTube
 function getYoutubeId(url: string): string | null {
   const regex =
     /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/;
@@ -53,25 +60,69 @@ function getYoutubeId(url: string): string | null {
 
 export default function LinkPreview({ tipo, url }: Props) {
   const config = LINK_CONFIG[tipo];
+
+  // 🆕 Estado para la URL resuelta (para links acortados de Maps)
+  const [urlResuelta, setUrlResuelta] = useState(url);
+
+  // 🆕 Resolver URLs acortadas de Maps
+  useEffect(() => {
+    // Solo aplica a Maps
+    if (tipo !== "maps") {
+      setUrlResuelta(url);
+      return;
+    }
+
+    // Si ya tiene coords, no hay nada que resolver
+    if (extraerCoordsMaps(url)) {
+      setUrlResuelta(url);
+      return;
+    }
+
+    // Es una URL acortada → resolverla
+    let activo = true;
+    resolverUrlMaps(url).then((final) => {
+      if (!activo) return;
+      if (__DEV__) {
+        // console.log("[LinkPreview] URL Maps resuelta:", final);
+      }
+      setUrlResuelta(final);
+    });
+
+    return () => {
+      activo = false;
+    };
+  }, [tipo, url]);
+
   if (!config) return null;
 
-  // Miniatura especial para YouTube
+  // YouTube
   const youtubeId = tipo === "youtube" ? getYoutubeId(url) : null;
   const thumbnailUrl = youtubeId
     ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`
     : null;
 
+  // Maps → usar urlResuelta (por si vino acortada)
+  let mapThumbnailUrl: string | null = null;
+  if (tipo === "maps") {
+    const coords = extraerCoordsMaps(urlResuelta);
+    if (coords) {
+      mapThumbnailUrl = buildStaticMapUrl(coords.lat, coords.lng, {
+        width: 600,
+        height: 300,
+      });
+    }
+  }
+
   const handlePress = () => {
     Linking.openURL(url).catch(() => {});
   };
 
-  // Dominio limpio para mostrar
   const dominio = url
     .replace(/^https?:\/\//, "")
     .split("/")[0]
     .replace("www.", "");
 
-  // ── Preview con miniatura (solo YouTube) ──
+  // YouTube
   if (thumbnailUrl) {
     return (
       <Pressable
@@ -104,7 +155,38 @@ export default function LinkPreview({ tipo, url }: Props) {
     );
   }
 
-  // ── Preview simple (otros servicios) ──
+  // Maps
+  if (tipo === "maps" && mapThumbnailUrl) {
+    return (
+      <Pressable
+        style={({ pressed }) => [
+          styles.cardMedia,
+          pressed && { opacity: 0.85 },
+        ]}
+        onPress={handlePress}
+      >
+        <View style={styles.thumbWrap}>
+          <Image
+            source={{ uri: mapThumbnailUrl }}
+            style={styles.thumbnail}
+            resizeMode="cover"
+          />
+          <View style={styles.pinOverlay} pointerEvents="none">
+            <Ionicons name="location" size={30} color="#EA4335" />
+          </View>
+          <View style={styles.badgeOverlay}>
+            <Ionicons name="location" size={14} color="#34A853" />
+            <Text style={styles.badgeText}>Google Maps</Text>
+          </View>
+        </View>
+        <Text style={styles.urlBelow} numberOfLines={1}>
+          {dominio}
+        </Text>
+      </Pressable>
+    );
+  }
+
+  // Fallback simple
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
@@ -158,7 +240,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // ── Card con miniatura (YouTube) ──
+  // ── Card con miniatura (YouTube / Maps) ──
   cardMedia: {
     marginTop: 10,
     borderRadius: 12,
@@ -215,5 +297,12 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.5)",
     fontSize: 12,
     padding: 10,
+  },
+
+  // ── Pin central sobre el mapa ──
+  pinOverlay: {
+    ...StyleSheet.absoluteFill,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

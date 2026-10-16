@@ -1,16 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useVideoPlayer, VideoView } from "expo-video";
 import {
-    Image,
-    Modal,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  Image,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 
-const BRAND = "#FF6B35";
+const BRAND = "#940000";
 
 type Props = {
   visible: boolean;

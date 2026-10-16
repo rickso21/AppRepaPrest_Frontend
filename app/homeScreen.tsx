@@ -355,6 +355,6 @@ const styles = StyleSheet.create({
     width: 46,
     height: 5,
     borderRadius: 3,
-    backgroundColor: "#ff3535",
+    backgroundColor: "#940000",
   },
 });

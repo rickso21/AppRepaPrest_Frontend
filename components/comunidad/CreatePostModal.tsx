@@ -19,7 +19,7 @@ import {
 } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const BRAND = "#FF6B35";
+const BRAND = "#940000";
 const CARD = "#16161F";
 const BORDER = "rgba(255,255,255,0.07)";
 
@@ -72,19 +72,19 @@ type Props = {
   texto: string;
   imagen: string | null;
   video: string | null;
-  audio: string | null; // 👈 nuevo
+  audio: string | null;
   enviando: boolean;
-  grabando: boolean; // 👈 nuevo
-  duracionAudio: number; // 👈 nuevo
+  grabando: boolean;
+  duracionAudio: number;
   progresoSubida?: number;
   comprimiendo?: boolean;
   progresoCompresion?: number;
   onChangeTexto: (t: string) => void;
   onPickImage: () => void;
   onPickVideo: () => void;
-  onStartRecording: () => void; // 👈 nuevo
-  onStopRecording: () => void; // 👈 nuevo
-  onCancelRecording: () => void; // 👈 nuevo
+  onStartRecording: () => void;
+  onStopRecording: () => void;
+  onCancelRecording: () => void;
   onClose: () => void;
   onSubmit: () => void;
 };

@@ -34,7 +34,7 @@ const styles = StyleSheet.create({
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: AVATAR_SIZE / 2,
-    backgroundColor: "#FF6B35",
+    backgroundColor: "#940000",
     borderWidth: 4,
     borderColor: "#0F0F17",
     alignItems: "center",

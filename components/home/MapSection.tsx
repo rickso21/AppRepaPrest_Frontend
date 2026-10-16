@@ -1,9 +1,9 @@
 import {
-  ActivityIndicator,
-  Platform,
-  StyleSheet,
-  Text,
-  View,
+    ActivityIndicator,
+    Platform,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
 import GoogleMapView, { GoogleMapViewRef } from "../maps/GoogleMapView";
 
@@ -49,7 +49,7 @@ export default function MapSection({
 
         {!ubicacionLista && !sinPermiso && (
           <View style={styles.loadingOverlay}>
-            <ActivityIndicator color="#FF6B35" size="small" />
+            <ActivityIndicator color="#940000" size="small" />
             <Text style={styles.loadingText}>Conectando GPS...</Text>
           </View>
         )}

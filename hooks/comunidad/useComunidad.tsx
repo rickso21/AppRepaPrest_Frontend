@@ -10,13 +10,12 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert } from "react-native";
 import { Video as VideoCompressor } from "react-native-compressor";
+import { detectarTipoLink, extraerUrls } from "../../components/utils/mapsLink";
 import { authService } from "../../services/auth/AuthService";
 import { api, getMediaBaseUrl } from "../../services/conector/api";
 import { useRealtimeComunidad } from "./useRealtimeComunidad";
 
-// ============================================================
 // TIPOS
-// ============================================================
 
 export type Comentario = {
   id?: number;
@@ -45,7 +44,8 @@ export type LinkTipo =
   | "vimeo"
   | "spotify"
   | "linkedin"
-  | "whatsapp";
+  | "whatsapp"
+  | "maps";
 
 export type LinkDetectado = {
   tipo: LinkTipo;
@@ -97,10 +97,7 @@ type Args = {
   autoLoad?: boolean;
 };
 
-// ============================================================
 // CONSTANTES
-// ============================================================
-
 const EMPTY_REACTIONS: Record<ReactionType, number> = {
   like: 0,
   love: 0,
@@ -114,9 +111,6 @@ const REACTION_KEYS: ReactionType[] = ["like", "love", "haha", "sad", "angry"];
 const esReaccionValida = (v: any): v is ReactionType =>
   typeof v === "string" && REACTION_KEYS.includes(v as ReactionType);
 
-// 🔧 FIX #11/#16: convierte cualquier id (number | string | null | "") a number > 0
-//    o null. Evita que Number("") === 0 / Number(null) === 0 se tomen como ids
-//    válidos y evita comparar "5" === 5 (siempre false).
 const aNumero = (v: any): number | null => {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : null;
@@ -135,9 +129,6 @@ const normalizarNombre = (s?: string | null): string =>
     .trim()
     .toLowerCase();
 
-// 🔧 FIX #2/#3: UNA sola función decide el group_id de cada scope. Para
-//    "principal" cae al grupo_id del usuario, así NUNCA se pide el feed sin
-//    filtrar mientras /grupo/:id todavía no responde.
 const resolverGrupoId = (
   scope: Scope,
   grupos: GruposUsuario,
@@ -150,52 +141,146 @@ const resolverGrupoId = (
   return null; // "global" no filtra por grupo
 };
 
-// 🔧 FIX #4: normaliza SIEMPRE una publicación del backend. Antes `comentarios`
-//    podía venir undefined y reventaba PostCard (`.length`) y enviarComentario
-//    (`[...p.comentarios]`). Se usa tanto al listar como al crear.
-const normalizarPublicacion = (p: any): Publicacion => ({
-  ...p,
-  post: p?.post ?? "",
-  image: p?.image ?? null,
-  video: p?.video ?? null,
-  audio: p?.audio ?? null,
-  user: p?.user ?? "",
-  comentarios: Array.isArray(p?.comentarios) ? p.comentarios : [],
-  reacciones: { ...EMPTY_REACTIONS, ...(p?.reacciones ?? {}) },
-  mi_reaccion: p?.mi_reaccion ?? null,
-  user_data: p?.user_data
-    ? {
-        id: p.user_data.id,
-        nombre: p.user_data.nombre,
-        avatar_url: p.user_data.avatar_url ?? null,
-      }
-    : undefined,
-  links: Array.isArray(p?.links) ? p.links : [],
-});
+// 🔧 Convierte fecha+hora UTC a hora local del dispositivo
+function convertirFechaHoraLocal(
+  fechaRaw: string,
+  horaRaw: string,
+): { fecha: string; hora: string } {
+  try {
+    if (!fechaRaw || !horaRaw) {
+      return { fecha: fechaRaw, hora: horaRaw };
+    }
+
+    // 1) Parsear fecha según su formato
+    let year: number, month: number, day: number;
+
+    if (fechaRaw.includes("/")) {
+      // Formato DD/MM/YYYY
+      const [d, m, y] = fechaRaw.split("/").map(Number);
+      day = d;
+      month = m;
+      year = y;
+    } else if (fechaRaw.includes("-")) {
+      // Formato YYYY-MM-DD
+      const [y, m, d] = fechaRaw.split("-").map(Number);
+      year = y;
+      month = m;
+      day = d;
+    } else {
+      return { fecha: fechaRaw, hora: horaRaw };
+    }
+
+    // 2) Parsear hora (con o sin segundos)
+    const horaPartes = horaRaw.split(":").map(Number);
+    const hh = horaPartes[0] ?? 0;
+    const mm = horaPartes[1] ?? 0;
+    const ss = horaPartes[2] ?? 0;
+
+    // 3) Validar
+    if (
+      !Number.isFinite(year) ||
+      !Number.isFinite(month) ||
+      !Number.isFinite(day) ||
+      !Number.isFinite(hh) ||
+      !Number.isFinite(mm)
+    ) {
+      return { fecha: fechaRaw, hora: horaRaw };
+    }
+
+    // 4) Construir Date como UTC
+    //    month - 1 porque Date usa 0-11 para meses
+    const date = new Date(Date.UTC(year, month - 1, day, hh, mm, ss));
+
+    if (isNaN(date.getTime())) {
+      return { fecha: fechaRaw, hora: horaRaw };
+    }
+
+    // 5) Extraer valores locales
+    const yearL = date.getFullYear();
+    const monthL = String(date.getMonth() + 1).padStart(2, "0");
+    const dayL = String(date.getDate()).padStart(2, "0");
+    const hoursL = String(date.getHours()).padStart(2, "0");
+    const minutesL = String(date.getMinutes()).padStart(2, "0");
+
+    // 6) Devolver en el MISMO formato que el backend (DD/MM/YYYY + HH:MM)
+    return {
+      fecha: `${dayL}/${monthL}/${yearL}`,
+      hora: `${hoursL}:${minutesL}`,
+    };
+  } catch {
+    return { fecha: fechaRaw, hora: horaRaw };
+  }
+}
+const normalizarPublicacion = (p: any): Publicacion => {
+  const post: string = p?.post ?? "";
+
+  // 1) Links del backend (si vienen)
+  let links: LinkDetectado[] = Array.isArray(p?.links) ? p.links : [];
+
+  // 2) Fallback: detectar en el frontend si el backend no los manda
+  if (links.length === 0 && post) {
+    links = extraerUrls(post)
+      .map((u) => {
+        const tipo = detectarTipoLink(u);
+        return tipo ? { tipo, url: u } : null;
+      })
+      .filter((x): x is LinkDetectado => x !== null);
+  }
+
+  // 🔧 Convertir fecha/hora UTC a local
+  const { fecha: fechaLocal, hora: horaLocal } = convertirFechaHoraLocal(
+    p?.fecha ?? "",
+    p?.hora ?? "",
+  );
+
+  const comentariosNormalizados = Array.isArray(p?.comentarios)
+    ? p.comentarios.map((c: any) => {
+        const { fecha: cf, hora: ch } = convertirFechaHoraLocal(
+          c?.fecha ?? "",
+          c?.hora ?? "",
+        );
+        return { ...c, fecha: cf, hora: ch };
+      })
+    : [];
+
+  return {
+    ...p,
+    post,
+    image: p?.image ?? null,
+    video: p?.video ?? null,
+    audio: p?.audio ?? null,
+    user: p?.user ?? "",
+    fecha: fechaLocal,
+    hora: horaLocal,
+    comentarios: comentariosNormalizados,
+    reacciones: { ...EMPTY_REACTIONS, ...(p?.reacciones ?? {}) },
+    mi_reaccion: p?.mi_reaccion ?? null,
+    user_data: p?.user_data
+      ? {
+          id: p.user_data.id,
+          nombre: p.user_data.nombre,
+          avatar_url: p.user_data.avatar_url ?? null,
+        }
+      : undefined,
+    links,
+  };
+};
 
 const MAX_VIDEO_MB = 100;
 const MAX_IMAGE_MB = 20;
 const MAX_AUDIO_SECONDS = 120;
 
-// 🔧 FIX #7: constantes para validar tamaños (antes MAX_IMAGE_MB no se usaba
-//    y el umbral de compresión estaba "hardcodeado" como 20).
 const MB = 1024 * 1024;
 const VIDEO_COMPRESS_THRESHOLD_MB = 20;
 
-// ✅ CAMBIO #6: polling global a 5 min (antes 60s)
 const GLOBAL_POLLING_INTERVAL = 300_000;
 
-// Debounce para eventos del WS (agrupa ráfagas en 1 fetch)
 const WS_RELOAD_DEBOUNCE_MS = 2000;
 
-// ============================================================
 // HOOK
-// ============================================================
 
 export function useComunidad({ autoLoad = true }: Args = {}) {
-  // ----------------------------------------------------------
   // Estado
-  // ----------------------------------------------------------
   const [userData, setUserData] = useState<UserData | null>(null);
 
   const [grupo, setGrupo] = useState("");
@@ -229,16 +314,11 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
   const [textoComment, setTextoComment] = useState("");
   const [scope, setScope] = useState<Scope>("principal");
 
-  // ----------------------------------------------------------
-  // 🎤 Audio recorder
-  // ----------------------------------------------------------
+  // Audio recorder
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ----------------------------------------------------------
-  // Derivados
-  // ----------------------------------------------------------
   const grupoId = userData?.grupo_id ?? null;
   const miUserId = userData?.id ?? null;
 
@@ -254,14 +334,11 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
   // ----------------------------------------------------------
   const mountedRef = useRef(true);
   const reloadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // 🔧 FIX #2: se reemplaza el booleano `inFlightRef` (que DESCARTABA peticiones
-  //    legítimas) por un id de petición: "gana la última" y las respuestas viejas
-  //    se ignoran. `inFlightKeyRef` solo evita duplicar la MISMA petición.
   const requestIdRef = useRef(0);
   const inFlightKeyRef = useRef<string | null>(null);
   const userDataRef = useRef<UserData | null>(null);
-  const enviandoRef = useRef(false); // 🔧 anti doble-tap en publicar/comentar
-  const grabandoRef = useRef(false); // 🔧 estado de grabación legible sin closures viejas
+  const enviandoRef = useRef(false);
+  const grabandoRef = useRef(false);
   const inicioGrabacionRef = useRef(0);
   const detenerGrabacionRef = useRef<() => void>(() => {});
   const lastFocusFetchRef = useRef(0);
@@ -283,9 +360,6 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
     };
   }, []);
 
-  // 🔧 FIX #8: al salir de la pantalla se limpia el timer de grabación y se
-  //    detiene el micrófono (antes quedaba grabando y el timer seguía
-  //    llamando setState sobre un componente desmontado).
   useEffect(() => {
     return () => {
       if (timerRef.current) {
@@ -309,26 +383,19 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
     gruposRef.current = grupos;
   }, [grupos]);
 
-  // ----------------------------------------------------------
-  // Init: leer userData
-  // ----------------------------------------------------------
   useEffect(() => {
     (async () => {
       const u = await authService.getUserData();
       if (!mountedRef.current) return;
       if (u) {
-        userDataRef.current = u as UserData; // 🔧 FIX #2: lo lee cargarPublicaciones
+        userDataRef.current = u as UserData;
         setUserData(u as UserData);
       }
-      // 🔧 FIX #3: si el usuario no tiene grupo no hay nada que cargar en
-      //    "principal"; antes el spinner quedaba infinito.
       if (!u?.grupo_id) setLoading(false);
     })();
   }, []);
 
-  // ----------------------------------------------------------
   // Cargar info del grupo
-  // ----------------------------------------------------------
   useEffect(() => {
     if (!grupoId) return;
     let active = true;
@@ -362,8 +429,7 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
             : null,
         });
       } catch (e) {
-        // 🔧 Ya no es 100% silencioso: en desarrollo se ve por qué no cargó el grupo.
-        if (__DEV__) console.warn("[useComunidad] error cargando grupo:", e);
+        // if (__DEV__) console.warn("[useComunidad] error cargando grupo:", e);
       }
     })();
 
@@ -372,18 +438,12 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
     };
   }, [grupoId]);
 
-  // ----------------------------------------------------------
-  // Helper: ID del grupo destino
-  // ----------------------------------------------------------
   const getGroupIdParaPublicar = useCallback((): number | null => {
-    // En "global" se publica en el grupo propio (comportamiento original).
     if (scope === "global") return aNumero(userData?.grupo_id);
     return resolverGrupoId(scope, grupos, userData);
   }, [scope, grupos, userData]);
 
-  // ----------------------------------------------------------
   // Fetch publicaciones — IDENTIDAD ESTABLE
-  // ----------------------------------------------------------
   const cargarPublicaciones = useCallback(
     async (scopeOverride?: Scope, opts?: { force?: boolean }) => {
       const scopeActual = scopeOverride ?? scopeRef.current;
@@ -394,24 +454,17 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
         userDataRef.current,
       );
 
-      // 🔧 FIX #3: nunca se pide un scope "group" SIN group_id (el backend
-      //    devolvía el feed sin filtrar → publicaciones de otros grupos).
       if (backendScope === "group" && !groupIdFiltro) {
         if (scopeActual !== "principal") {
-          // emergencia/monitoreo inexistente → lista vacía, sin spinner
           setPublicaciones([]);
           setLoading(false);
         } else if (userDataRef.current) {
-          // usuario cargado pero sin grupo
           setLoading(false);
         }
-        // principal con userData aún cargando: se espera; el efecto de carga
-        // inicial volverá a llamar cuando el grupo sea conocido.
         setRefreshing(false);
         return;
       }
 
-      // 🔧 FIX #2: misma petición ya en vuelo → no duplicar (salvo force)
       const key = `${backendScope}:${groupIdFiltro ?? "-"}`;
       if (!opts?.force && inFlightKeyRef.current === key) return;
       inFlightKeyRef.current = key;
@@ -423,8 +476,6 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
 
         const { data } = await api.get("/publication", { params });
 
-        // 🔧 FIX #2: si mientras tanto se lanzó otra petición (p. ej. cambió el
-        //    scope) esta respuesta es vieja y NO debe pisar el estado.
         if (!mountedRef.current || myId !== requestIdRef.current) return;
 
         if (data?.res) {
@@ -433,15 +484,7 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
           );
         }
       } catch (e: any) {
-        if (__DEV__) {
-          console.error(
-            "[useComunidad] error fetch:",
-            e?.message,
-            e?.response?.data,
-          );
-        }
       } finally {
-        // Solo la petición vigente apaga los indicadores de carga
         if (myId === requestIdRef.current) {
           inFlightKeyRef.current = null;
           if (mountedRef.current) {
@@ -454,9 +497,7 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
     [],
   );
 
-  // ----------------------------------------------------------
   // scheduleReload (debounce para eventos WS)
-  // ----------------------------------------------------------
   const scheduleReload = useCallback(() => {
     if (reloadTimeoutRef.current) clearTimeout(reloadTimeoutRef.current);
     reloadTimeoutRef.current = setTimeout(() => {
@@ -465,31 +506,19 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
     }, WS_RELOAD_DEBOUNCE_MS);
   }, [cargarPublicaciones]);
 
-  // ----------------------------------------------------------
   // Carga inicial
-  // ----------------------------------------------------------
   useEffect(() => {
     if (initialLoadDoneRef.current) return;
     if (!userData?.grupo_id) return;
-    // 🔧 FIX #2/#3: ya NO se espera a /grupo/:id (grupos.principal). El grupo
-    //    principal es userData.grupo_id, así la primera carga siempre va con
-    //    group_id y no compite con la petición del foco.
-
     initialLoadDoneRef.current = true;
     setLoading(true);
     cargarPublicaciones();
   }, [userData?.grupo_id, cargarPublicaciones]);
 
-  // ----------------------------------------------------------
   // cambiarScope
-  // ----------------------------------------------------------
   const cambiarScope = useCallback(
     (nuevoScope: Scope) => {
       if (nuevoScope === scope) return;
-      // 🔧 FIX #2: scopeRef se actualiza YA (el useEffect lo haría un render
-      //    después) y se fuerza la petición: antes, si había una en vuelo, la
-      //    del nuevo scope se descartaba y la lista quedaba vacía o con datos
-      //    del scope anterior.
       scopeRef.current = nuevoScope;
       setScope(nuevoScope);
       setLoading(true);
@@ -499,9 +528,7 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
     [scope, cargarPublicaciones],
   );
 
-  // ----------------------------------------------------------
   // useFocusEffect (con throttle)
-  // ----------------------------------------------------------
   useFocusEffect(
     useCallback(() => {
       if (!autoLoad) return;
@@ -514,8 +541,6 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
       (async () => {
         const ok = await authService.isAuthenticated();
         if (!active || !ok) return;
-        // 🔧 FIX #19: refresco silencioso. Antes `setLoading(true)` en cada foco
-        //    reemplazaba toda la lista por un spinner (parpadeo al volver a la pantalla).
         cargarPublicaciones();
       })();
 
@@ -525,36 +550,23 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
     }, [autoLoad, cargarPublicaciones]),
   );
 
-  // ----------------------------------------------------------
   // onRefresh
-  // ----------------------------------------------------------
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     cargarPublicaciones();
   }, [cargarPublicaciones]);
 
-  // ----------------------------------------------------------
-  // ✅ CAMBIO #6: Polling global (5 min + condicional al WS)
-  // ----------------------------------------------------------
   useEffect(() => {
     if (scope !== "global") return;
 
-    // 🔧 FIX #21: el WS solo suscribe a los canales de TUS grupos
-    //    (group.{id}); las publicaciones de otros grupos (lo que muestra
-    //    "Global") nunca llegan por ahí. Antes el polling se omitía si el
-    //    socket estaba conectado → Global quedaba desactualizado hasta
-    //    refrescar a mano. Ahora Global siempre hace polling (cada 5 min).
     const interval = setInterval(() => {
       cargarPublicaciones("global");
     }, GLOBAL_POLLING_INTERVAL);
     return () => clearInterval(interval);
   }, [scope, cargarPublicaciones]);
 
-  // ----------------------------------------------------------
   // WEBSOCKET
-  // ----------------------------------------------------------
   useEffect(() => {
-    // 🔧 FIX #17: comparación numérica (el payload puede traer "5" y el usuario 5).
     wsCallbacksRef.current.onPostCreated = (payload: any) => {
       if (!mountedRef.current) return;
       if (mismoUsuario(payload?.userId, miUserId)) return;
@@ -593,7 +605,6 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
     onPostReacted: useCallback(
       (payload: any) => {
         if (!mountedRef.current) return;
-        // 🔧 FIX #17: antes `payload.userId` sin `?.` → TypeError si llegaba un payload vacío.
         if (!payload) return;
         if (mismoUsuario(payload.userId, miUserId)) return;
 
@@ -626,11 +637,9 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
     ),
   });
 
-  // ----------------------------------------------------------
-  // 🎤 GRABACIÓN DE AUDIO
-  // ----------------------------------------------------------
+  // GRABACIÓN DE AUDIO
   const iniciarGrabacion = useCallback(async () => {
-    if (grabandoRef.current) return; // 🔧 evita doble inicio
+    if (grabandoRef.current) return;
     try {
       const status = await AudioModule.requestRecordingPermissionsAsync();
       if (!status.granted) {
@@ -639,8 +648,9 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
       }
 
       await setAudioModeAsync({
-        allowsRecording: true,
+        allowsRecording: false,
         playsInSilentMode: true,
+        interruptionModeAndroid: "doNotMix",
       });
 
       await audioRecorder.prepareToRecordAsync();
@@ -653,10 +663,6 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
 
       if (timerRef.current) clearInterval(timerRef.current);
 
-      // 🔧 FIX #8: antes se llamaba a `detenerGrabacion()` DENTRO del updater de
-      //    setDuracionAudio (efecto secundario dentro de un updater: se ejecuta
-      //    dos veces en StrictMode y usaba una versión vieja de la función).
-      //    Ahora el tiempo se calcula con el reloj y se detiene vía ref.
       timerRef.current = setInterval(() => {
         const seg = Math.floor(
           (Date.now() - inicioGrabacionRef.current) / 1000,
@@ -668,8 +674,6 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
         setDuracionAudio(seg);
       }, 500);
     } catch (e) {
-      console.error("[iniciarGrabacion]", e);
-      // 🔧 si falla a medias no se deja la UI "grabando"
       grabandoRef.current = false;
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -686,7 +690,6 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-    // 🔧 evita doble stop (límite de 120 s + botón "stop" casi a la vez)
     if (!grabandoRef.current) return;
     grabandoRef.current = false;
 
@@ -701,9 +704,7 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
         setVideoPost(null);
       }
     } catch (e) {
-      console.error("[detenerGrabacion]", e);
     } finally {
-      // 🔧 FIX #8: antes `grabando` se quedaba en true si stop() lanzaba error
       if (mountedRef.current) {
         setGrabando(false);
         setDuracionAudio(0);
@@ -711,7 +712,6 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
     }
   }, [audioRecorder]);
 
-  // Siempre apunta a la última versión (lo usa el timer del límite de duración)
   detenerGrabacionRef.current = detenerGrabacion;
 
   const cancelarAudio = useCallback(async () => {
@@ -722,7 +722,6 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
     const estabaGrabando = grabandoRef.current;
     grabandoRef.current = false;
 
-    // UI inmediata, no espera al módulo nativo
     setGrabando(false);
     setDuracionAudio(0);
     setAudioPost(null);
@@ -732,14 +731,10 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
         await audioRecorder.stop();
       }
       await setAudioModeAsync({ allowsRecording: false });
-    } catch (e) {
-      console.error("[cancelarAudio]", e);
-    }
+    } catch (e) {}
   }, [audioRecorder]);
 
-  // ----------------------------------------------------------
   // Seleccionar IMAGEN
-  // ----------------------------------------------------------
   const seleccionarImagen = useCallback(async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
@@ -755,7 +750,6 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
     if (!result.canceled && result.assets?.[0]) {
       const a = result.assets[0];
 
-      // 🔧 FIX #7: MAX_IMAGE_MB estaba declarado pero nunca se validaba.
       const sizeMB = (a.fileSize ?? 0) / MB;
       if (sizeMB > MAX_IMAGE_MB) {
         Alert.alert(
@@ -771,9 +765,7 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
     }
   }, []);
 
-  // ----------------------------------------------------------
   // Seleccionar VIDEO
-  // ----------------------------------------------------------
   const seleccionarVideo = useCallback(async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
@@ -793,7 +785,6 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
     const a = result.assets[0];
     const originalUri = a.uri;
 
-    // Tamaño original (fileSize del picker; si no viene, se lee del archivo)
     let sizeOriginalMB = (a.fileSize ?? 0) / MB;
     if (!sizeOriginalMB) {
       try {
@@ -826,7 +817,6 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
         }
       }
     } catch (err) {
-      // La compresión falló: se intenta con el original... pero YA validando tamaño.
       uriFinal = originalUri;
       sizeFinalMB = sizeOriginalMB;
     } finally {
@@ -835,10 +825,6 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
         setProgresoCompresion(0);
       }
     }
-
-    // 🔧 FIX #7: antes, si la compresión lanzaba error, el `catch` aceptaba el
-    //    video original SIN comprobar MAX_VIDEO_MB (se podía subir un video de
-    //    500 MB y el upload fallaba/colgaba). Ahora el límite se valida SIEMPRE.
     if (sizeFinalMB > MAX_VIDEO_MB) {
       Alert.alert(
         "Video muy grande",
@@ -852,9 +838,7 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
     setAudioPost(null);
   }, []);
 
-  // ----------------------------------------------------------
   // Modal post
-  // ----------------------------------------------------------
   const abrirModalPost = useCallback(() => {
     setModalPost(true);
     setProgresoSubida(0);
@@ -866,8 +850,6 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
       timerRef.current = null;
     }
 
-    // 🔧 FIX #8: si se cierra el modal mientras se graba, también se detiene el
-    //    micrófono (antes solo se reseteaba el estado visual y seguía grabando).
     if (grabandoRef.current || audioRecorder.isRecording) {
       grabandoRef.current = false;
       try {
@@ -887,12 +869,7 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
     setDuracionAudio(0);
   }, [audioRecorder]);
 
-  // ----------------------------------------------------------
-  // ✅ CAMBIO #4: CREAR PUBLICACIÓN (inserción local)
-  // ----------------------------------------------------------
   const crearPublicacion = useCallback(async () => {
-    // 🔧 FIX #5: no se puede publicar a mitad de compresión/grabación ni dos
-    //    veces seguidas (doble tap → publicación duplicada).
     if (enviandoRef.current) return;
     if (comprimiendo || grabando) return;
 
@@ -973,8 +950,6 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
         headers: { "Content-Type": "multipart/form-data" },
         timeout: 600000,
         onUploadProgress: (progressEvent) => {
-          // 🔧 FIX #9: antes `total ?? 1` daba porcentajes absurdos (loaded*100)
-          //    cuando el total no se conoce todavía.
           if (!progressEvent.total) return;
           const pct = Math.min(
             100,
@@ -987,12 +962,7 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
       if (data?.res) {
         cerrarModalPost();
 
-        // ✅ Inserción local si el backend devuelve la publicación
         if (data.publicacion) {
-          // 🔧 FIX #4/#16: se normaliza (comentarios siempre array) y, si el
-          //    backend no manda autor, se completa con el usuario actual. Sin
-          //    esto la publicación nueva no mostraba el botón de eliminar
-          //    (esMia no la reconocía) ni el nombre del autor.
           const yo = userDataRef.current;
           const base = normalizarPublicacion(data.publicacion);
           const miId = aNumero(yo?.id);
@@ -1011,12 +981,10 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
                   }
                 : undefined),
           };
-          // 🔧 sin duplicados si un reload (WS/foco) ya trajo esta publicación
           setPublicaciones((prev) =>
             prev.some((p) => p.id === nueva.id) ? prev : [nueva, ...prev],
           );
         } else {
-          // Fallback: refetch (forzado para que no lo descarte otra petición)
           cargarPublicaciones(undefined, { force: true });
         }
       } else {
@@ -1046,9 +1014,7 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
     getGroupIdParaPublicar,
   ]);
 
-  // ----------------------------------------------------------
   // Eliminar publicación
-  // ----------------------------------------------------------
   const eliminarPublicacion = useCallback((id: number) => {
     Alert.alert("Eliminar", "¿Seguro que deseas eliminar esta publicación?", [
       { text: "Cancelar", style: "cancel" },
@@ -1091,7 +1057,7 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
   const enviarComentario = useCallback(async () => {
     if (modalComment === null) return;
     if (!textoComment.trim()) return;
-    if (enviandoRef.current) return; // 🔧 anti doble-tap (comentario duplicado)
+    if (enviandoRef.current) return;
     enviandoRef.current = true;
 
     const postId = modalComment;
@@ -1104,22 +1070,29 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
       if (data?.res) {
         cerrarModalComment();
 
-        // Actualización local si el backend devuelve el comentario
         if (data.comentario) {
+          // 🔧 Normalizar el comentario también (fecha/hora local)
+          const comentarioNorm = {
+            ...data.comentario,
+            ...convertirFechaHoraLocal(
+              data.comentario?.fecha ?? "",
+              data.comentario?.hora ?? "",
+            ),
+          };
+
           setPublicaciones((prev) =>
             prev.map((p) => {
               if (p.id !== postId) return p;
               const actuales = p.comentarios ?? [];
               if (
-                data.comentario.id != null &&
-                actuales.some((c) => c.id === data.comentario.id)
+                comentarioNorm.id != null &&
+                actuales.some((c) => c.id === comentarioNorm.id)
               )
                 return p;
-              return { ...p, comentarios: [...actuales, data.comentario] };
+              return { ...p, comentarios: [...actuales, comentarioNorm] };
             }),
           );
         } else {
-          // Fallback: refetch (forzado)
           cargarPublicaciones(undefined, { force: true });
         }
       } else {
@@ -1159,8 +1132,6 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
       try {
         await api.post(`/publication/${postId}/reaccionar`, { type });
       } catch (e) {
-        //forzado: si había otra petición en vuelo, el rollback se perdía
-        // y la reacción "optimista" fallida quedaba mostrada.
         if (mountedRef.current) cargarPublicaciones(undefined, { force: true });
       }
     },
@@ -1172,15 +1143,9 @@ export function useComunidad({ autoLoad = true }: Args = {}) {
   // ----------------------------------------------------------
   const esMia = useCallback(
     (pub: Publicacion) => {
-      // 1) Por id (comparación numérica; también mira user_data.id)
       const miId = aNumero(userData?.id);
       const autorId = aNumero(pub.user_data?.id ?? pub.user_id);
       if (miId && autorId) return miId === autorId;
-
-      // allback SOLO si el backend no mandó ids: nombre EXACTO.
-      // antes `pub.user.includes(nombre)` marcaba como "mía"
-      //    cualquier publicación de "Mariana" para el usuario "Ana" (y mostraba
-      //    el botón eliminar), y reventaba si `pub.user` era undefined.
       const autor = normalizarNombre(pub.user);
       if (!autor) return false;
       const nombre = normalizarNombre(userData?.nombre);

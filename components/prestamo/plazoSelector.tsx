@@ -28,7 +28,7 @@ export default function PlazoSelector({
             <Ionicons
               name={plazo === 1 ? "calendar-outline" : "calendar"}
               size={18}
-              color={isSelected ? "#FF6B35" : "rgba(255,255,255,0.5)"}
+              color={isSelected ? "#940000" : "rgba(255,255,255,0.5)"}
             />
             <Text
               style={[
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.08)",
   },
   optionSelected: {
-    borderColor: "#FF6B35",
+    borderColor: "#940000",
     backgroundColor: "rgba(255,107,53,0.12)",
   },
   optionText: {
@@ -68,5 +68,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
-  optionTextSelected: { color: "#FF6B35" },
+  optionTextSelected: { color: "#940000" },
 });

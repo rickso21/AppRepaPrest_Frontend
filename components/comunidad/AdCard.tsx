@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import type { Ad } from "../../hooks/comunidad/useAds";
 
-const BRAND = "#FF6B35";
+const BRAND = "#940000";
 const CARD = "#16161F";
 const BORDER = "rgba(255,255,255,0.07)";
 

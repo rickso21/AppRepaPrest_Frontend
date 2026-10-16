@@ -1,7 +1,7 @@
 // components/comunidad/PostCard.tsx
 import { Ionicons } from "@expo/vector-icons";
 import { useEvent } from "expo";
-import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { createAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { memo, useEffect, useRef, useState } from "react";
 import {
@@ -19,7 +19,7 @@ import type {
 import CommentList from "./CommentList";
 import LinkPreview from "./LinkPreview";
 
-const BRAND = "#FF6B35";
+const BRAND = "#940000";
 const CARD = "#16161F";
 const BORDER = "rgba(255,255,255,0.07)";
 
@@ -270,8 +270,17 @@ const PostVideo = memo(function PostVideo({
 // AudioPlayer (expo-audio)
 
 function AudioPlayer({ uri }: { uri: string }) {
-  const player = useAudioPlayer({ uri });
+  const player = useRef(createAudioPlayer({ uri })).current;
   const status = useAudioPlayerStatus(player);
+
+  useEffect(() => {
+    return () => {
+      try {
+        player.remove();
+        player.release();
+      } catch {}
+    };
+  }, [player]);
 
   const playing = status.playing;
   const position = status.currentTime ?? 0;

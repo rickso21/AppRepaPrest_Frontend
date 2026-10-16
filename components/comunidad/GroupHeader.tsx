@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 
-const BRAND = "#ff3535";
+const BRAND = "#860000";
 const BORDER = "rgba(255,255,255,0.07)";
 
 type Scope = "principal" | "emergencia" | "monitoreo" | "global";
@@ -180,7 +180,7 @@ function ScopeChip({
 
 const styles = StyleSheet.create({
   headerWrapper: {
-    backgroundColor: "#ff3535",
+    backgroundColor: "#860000",
     borderBottomWidth: 1,
     borderBottomColor: BORDER,
   },

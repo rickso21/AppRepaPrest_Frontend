@@ -3,6 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   RefreshControl,
   SafeAreaView,
@@ -12,9 +13,10 @@ import {
   View,
 } from "react-native";
 
-const POLLING_INTERVAL_MS = 20000;
+const POLLING_INTERVAL_MS = 15000;
 
 type RefreshOptions = { silencioso?: boolean };
+type EstadoSolicitud = "solicitado" | "aprobado" | "rechazado";
 
 type Props = {
   folio: string;
@@ -22,7 +24,7 @@ type Props = {
   pagoQuincenal: number;
   numeroPagos: number;
   onRefresh?: (opts?: RefreshOptions) => void | Promise<void>;
-  estadoActual?: "solicitado" | "aprobado" | "rechazado";
+  estadoActual?: EstadoSolicitud;
 };
 
 export default function SolicitudEnviadaView({
@@ -39,29 +41,41 @@ export default function SolicitudEnviadaView({
 
   const [refrescando, setRefrescando] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [ultimaActualizacion, setUltimaActualizacion] = useState<Date>(
-    new Date(),
-  );
 
-  // REF ESTABLE PARA onRefresh
+  const estadoAnteriorRef = useRef<EstadoSolicitud>(estadoActual);
+
+  // 🔗 REF ESTABLE PARA onRefresh
   const onRefreshRef = useRef(onRefresh);
   useEffect(() => {
+    console.log(
+      "[SolicitudEnviada] 🔗 onRefresh actualizado, es función?:",
+      typeof onRefresh,
+    );
     onRefreshRef.current = onRefresh;
   }, [onRefresh]);
 
-  // REF ESTABLE PARA refrescando (para el polling)
+  // REF ESTABLE PARA refrescando
   const refrescandoRef = useRef(refrescando);
   useEffect(() => {
     refrescandoRef.current = refrescando;
   }, [refrescando]);
 
-  // REFRESH INMEDIATO AL MONTAR (silencioso)
+  // REFRESH INMEDIATO AL MONTAR
   useEffect(() => {
-    if (!onRefreshRef.current) return;
+    console.log("[SolicitudEnviada] 🚀 MONTADO, refresh inicial");
 
-    Promise.resolve(onRefreshRef.current({ silencioso: true }))
-      .then(() => setUltimaActualizacion(new Date()))
-      .catch((e) => console.error(" [Hijo] Error en montaje:", e));
+    if (!onRefreshRef.current) {
+      console.log("[SolicitudEnviada] ⚠️ onRefresh es undefined en montaje");
+      return;
+    }
+
+    Promise.resolve(onRefreshRef.current({ silencioso: true })).catch((e) =>
+      console.error("[SolicitudEnviada] Error en montaje:", e),
+    );
+
+    return () => {
+      console.log("[SolicitudEnviada] 💀 DESMONTADO");
+    };
   }, []);
 
   // ANIMACIONES
@@ -99,21 +113,77 @@ export default function SolicitudEnviadaView({
     return () => pulse.stop();
   }, []);
 
-  // POLLING CADA 20s (silencioso, sin colisión)
+  // 🔄 POLLING CADA 15s
   useEffect(() => {
+    console.log(
+      "[SolicitudEnviada] 🕐 POLLING INICIADO, intervalo:",
+      POLLING_INTERVAL_MS,
+    );
+
     const interval = setInterval(async () => {
-      if (refrescandoRef.current) return;
+      if (refrescandoRef.current) {
+        console.log("[SolicitudEnviada] ⏸️ refresh en curso, se salta");
+        return;
+      }
+
+      // 👇 Si no hay onRefresh (transición activa), no hagas nada
+      if (!onRefreshRef.current) {
+        console.log(
+          "[SolicitudEnviada] ⏸️ onRefresh desactivado (transición), se salta",
+        );
+        return;
+      }
 
       try {
-        await Promise.resolve(onRefreshRef.current?.({ silencioso: true }));
-        setUltimaActualizacion(new Date());
+        console.log("[SolicitudEnviada] 📡 llamando onRefresh...");
+        await Promise.resolve(onRefreshRef.current({ silencioso: true }));
+        console.log("[SolicitudEnviada] ✅ onRefresh completado");
       } catch (e) {
-        // silencioso
+        console.log("[SolicitudEnviada] ❌ error en polling:", e);
       }
     }, POLLING_INTERVAL_MS);
 
-    return () => clearInterval(interval);
+    return () => {
+      console.log("[SolicitudEnviada] 🛑 POLLING DETENIDO");
+      clearInterval(interval);
+    };
   }, []);
+
+  // 🎯 DETECTAR CAMBIO DE ESTADO
+  useEffect(() => {
+    console.log(
+      "[SolicitudEnviada] 🔔 estadoActual cambió a:",
+      estadoActual,
+      "(anterior:",
+      estadoAnteriorRef.current,
+      ")",
+    );
+
+    const anterior = estadoAnteriorRef.current;
+
+    if (anterior !== estadoActual) {
+      estadoAnteriorRef.current = estadoActual;
+      console.log("[SolicitudEnviada] ✨ transición detectada");
+
+      if (estadoActual === "aprobado") {
+        setFeedback("¡Felicidades! Tu préstamo fue aprobado 🎉");
+        Alert.alert(
+          "¡Préstamo aprobado!",
+          "Tu solicitud fue aprobada. Recibirás tu dinero en los próximos minutos.",
+          [{ text: "Genial" }],
+        );
+        setTimeout(() => setFeedback(null), 5000);
+      } else if (estadoActual === "rechazado") {
+        setFeedback("Tu solicitud fue rechazada");
+        Alert.alert(
+          "Solicitud rechazada",
+          "Lo sentimos, no pudimos aprobar tu solicitud en este momento. Puedes intentarlo de nuevo más tarde.",
+          [{ text: "Entendido" }],
+        );
+        setTimeout(() => setFeedback(null), 5000);
+      }
+    }
+  }, [estadoActual]);
 
   // PULL-TO-REFRESH
   const handleRefresh = async () => {
@@ -125,7 +195,6 @@ export default function SolicitudEnviadaView({
 
     try {
       await Promise.resolve(onRefreshRef.current({ silencioso: false }));
-      setUltimaActualizacion(new Date());
       setFeedback("Estado actualizado");
       setTimeout(() => setFeedback(null), 2500);
     } catch (error) {
@@ -136,16 +205,34 @@ export default function SolicitudEnviadaView({
     }
   };
 
-  const tiempoDesdeActualizacion = (() => {
-    const segundos = Math.floor(
-      (Date.now() - ultimaActualizacion.getTime()) / 1000,
-    );
-    if (segundos < 10) return "hace unos segundos";
-    if (segundos < 60) return `hace ${segundos} segundos`;
-    const minutos = Math.floor(segundos / 60);
-    if (minutos === 1) return "hace 1 minuto";
-    return `hace ${minutos} minutos`;
-  })();
+  // ─── Valores dinámicos según el estado ───
+  const iconGradient: [string, string] =
+    estadoActual === "aprobado"
+      ? ["#4ADE80", "#22C55E"]
+      : estadoActual === "rechazado"
+        ? ["#EF4444", "#DC2626"]
+        : ["#940000", "#E8552E"];
+
+  const iconName =
+    estadoActual === "aprobado"
+      ? "checkmark-circle"
+      : estadoActual === "rechazado"
+        ? "close-circle"
+        : "time";
+
+  const titulo =
+    estadoActual === "aprobado"
+      ? "¡Préstamo aprobado!"
+      : estadoActual === "rechazado"
+        ? "Solicitud rechazada"
+        : "¡Solicitud enviada!";
+
+  const subtitulo =
+    estadoActual === "aprobado"
+      ? "Tu dinero está en camino\nRecibirás una notificación pronto"
+      : estadoActual === "rechazado"
+        ? "Lo sentimos, no pudimos aprobar tu solicitud\nIntenta de nuevo más tarde"
+        : "Estamos evaluando tu solicitud\nTe notificaremos cuando sea aprobada";
 
   return (
     <SafeAreaView style={styles.container}>
@@ -157,8 +244,8 @@ export default function SolicitudEnviadaView({
           <RefreshControl
             refreshing={refrescando}
             onRefresh={handleRefresh}
-            tintColor="#FF6B35"
-            colors={["#FF6B35"]}
+            tintColor="#940000"
+            colors={["#940000"]}
             progressBackgroundColor="#16161F"
           />
         }
@@ -173,21 +260,15 @@ export default function SolicitudEnviadaView({
             },
           ]}
         >
-          <LinearGradient
-            colors={["#FF6B35", "#E8552E"]}
-            style={styles.iconCircle}
-          >
-            <Ionicons name="time" size={64} color="#fff" />
+          <LinearGradient colors={iconGradient} style={styles.iconCircle}>
+            <Ionicons name={iconName as any} size={64} color="#fff" />
           </LinearGradient>
         </Animated.View>
 
         {/* TÍTULO */}
         <Animated.View style={{ opacity: fadeAnim, alignItems: "center" }}>
-          <Text style={styles.title}>¡Solicitud enviada!</Text>
-          <Text style={styles.subtitle}>
-            Estamos evaluando tu solicitud{"\n"}
-            Te notificaremos cuando sea aprobada
-          </Text>
+          <Text style={styles.title}>{titulo}</Text>
+          <Text style={styles.subtitle}>{subtitulo}</Text>
         </Animated.View>
 
         {/* FOLIO */}
@@ -255,17 +336,34 @@ export default function SolicitudEnviadaView({
             <View style={styles.timelineLine} />
 
             <View style={styles.timelineStep}>
-              <View style={[styles.timelineDot, styles.timelineDotCurrent]}>
-                <View style={styles.timelineDotInner} />
+              <View
+                style={[
+                  styles.timelineDot,
+                  estadoActual === "solicitado"
+                    ? styles.timelineDotCurrent
+                    : styles.timelineDotDone,
+                ]}
+              >
+                {estadoActual === "solicitado" ? (
+                  <View style={styles.timelineDotInner} />
+                ) : (
+                  <Ionicons name="checkmark" size={12} color="#fff" />
+                )}
               </View>
               <View style={styles.timelineContent}>
                 <Text
-                  style={[styles.timelineTitle, styles.timelineTitleCurrent]}
+                  style={[
+                    styles.timelineTitle,
+                    estadoActual === "solicitado" &&
+                      styles.timelineTitleCurrent,
+                  ]}
                 >
                   En revisión
                 </Text>
                 <Text style={styles.timelineDesc}>
-                  Estamos evaluando tu perfil
+                  {estadoActual === "solicitado"
+                    ? "Estamos evaluando tu perfil"
+                    : "Revisión completada"}
                 </Text>
               </View>
             </View>
@@ -273,57 +371,76 @@ export default function SolicitudEnviadaView({
             <View style={styles.timelineLine} />
 
             <View style={styles.timelineStep}>
-              <View style={[styles.timelineDot, styles.timelineDotPending]}>
-                <Ionicons
-                  name="checkmark"
-                  size={12}
-                  color="rgba(255,255,255,0.3)"
-                />
+              <View
+                style={[
+                  styles.timelineDot,
+                  estadoActual === "aprobado"
+                    ? styles.timelineDotDone
+                    : estadoActual === "rechazado"
+                      ? styles.timelineDotRejected
+                      : styles.timelineDotPending,
+                ]}
+              >
+                {estadoActual === "aprobado" ? (
+                  <Ionicons name="checkmark" size={12} color="#fff" />
+                ) : estadoActual === "rechazado" ? (
+                  <Ionicons name="close" size={12} color="#fff" />
+                ) : (
+                  <Ionicons
+                    name="checkmark"
+                    size={12}
+                    color="rgba(255,255,255,0.3)"
+                  />
+                )}
               </View>
               <View style={styles.timelineContent}>
-                <Text style={styles.timelineTitle}>Aprobada</Text>
+                <Text
+                  style={[
+                    styles.timelineTitle,
+                    estadoActual === "rechazado" && { color: "#EF4444" },
+                  ]}
+                >
+                  {estadoActual === "rechazado" ? "Rechazada" : "Aprobada"}
+                </Text>
                 <Text style={styles.timelineDesc}>
-                  Recibirás tu dinero en minutos
+                  {estadoActual === "aprobado"
+                    ? "Recibirás tu dinero en minutos"
+                    : estadoActual === "rechazado"
+                      ? "Puedes intentar de nuevo más tarde"
+                      : "Recibirás tu dinero en minutos"}
                 </Text>
               </View>
             </View>
           </View>
         </Animated.View>
 
-        {/* INFO */}
-        <Animated.View style={[styles.infoBox, { opacity: fadeAnim }]}>
-          <Ionicons name="information-circle" size={20} color="#60A5FA" />
-          <Text style={styles.infoText}>
-            Puedes seguir usando la app mientras evaluamos tu solicitud. Te
-            notificaremos cuando esté lista. Desliza hacia abajo para
-            actualizar.
-          </Text>
-        </Animated.View>
-
-        {/* ÚLTIMA ACTUALIZACIÓN */}
-        <Animated.View style={[styles.lastUpdateBox, { opacity: fadeAnim }]}>
-          <Ionicons
-            name="time-outline"
-            size={14}
-            color="rgba(255,255,255,0.4)"
-          />
-          <Text style={styles.lastUpdateText}>
-            Última actualización {tiempoDesdeActualizacion}
-          </Text>
-        </Animated.View>
-
         {/* FEEDBACK */}
         {feedback && (
-          <Animated.View style={[styles.feedbackBox, { opacity: fadeAnim }]}>
+          <Animated.View
+            style={[
+              styles.feedbackBox,
+              feedback.toLowerCase().includes("rechazad") && {
+                backgroundColor: "rgba(239,68,68,0.1)",
+                borderColor: "rgba(239,68,68,0.25)",
+              },
+              feedback.toLowerCase().includes("aprobado") && {
+                backgroundColor: "rgba(74,222,128,0.1)",
+                borderColor: "rgba(74,222,128,0.3)",
+              },
+              { opacity: fadeAnim },
+            ]}
+          >
             <Ionicons
               name={
-                feedback.toLowerCase().includes("no se pudo")
+                feedback.toLowerCase().includes("no se pudo") ||
+                feedback.toLowerCase().includes("rechazad")
                   ? "alert-circle"
                   : "checkmark-circle"
               }
               size={16}
               color={
-                feedback.toLowerCase().includes("no se pudo")
+                feedback.toLowerCase().includes("no se pudo") ||
+                feedback.toLowerCase().includes("rechazad")
                   ? "#EF4444"
                   : "#4ADE80"
               }
@@ -331,7 +448,8 @@ export default function SolicitudEnviadaView({
             <Text
               style={[
                 styles.feedbackText,
-                feedback.toLowerCase().includes("no se pudo") && {
+                (feedback.toLowerCase().includes("no se pudo") ||
+                  feedback.toLowerCase().includes("rechazad")) && {
                   color: "#EF4444",
                 },
               ]}
@@ -360,7 +478,7 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#FF6B35",
+    shadowColor: "#940000",
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.5,
     shadowRadius: 24,
@@ -399,7 +517,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   folioValue: {
-    color: "#FF6B35",
+    color: "#940000",
     fontSize: 20,
     fontWeight: "900",
     letterSpacing: 1,
@@ -454,10 +572,11 @@ const styles = StyleSheet.create({
   },
   timelineDotDone: { backgroundColor: "#4ADE80" },
   timelineDotCurrent: {
-    backgroundColor: "#FF6B35",
+    backgroundColor: "#940000",
     alignItems: "center",
     justifyContent: "center",
   },
+  timelineDotRejected: { backgroundColor: "#EF4444" },
   timelineDotInner: {
     width: 10,
     height: 10,
@@ -478,41 +597,11 @@ const styles = StyleSheet.create({
   },
   timelineContent: { flex: 1, paddingTop: 1 },
   timelineTitle: { color: "#fff", fontSize: 14, fontWeight: "700" },
-  timelineTitleCurrent: { color: "#FF6B35" },
+  timelineTitleCurrent: { color: "#940000" },
   timelineDesc: {
     color: "rgba(255,255,255,0.4)",
     fontSize: 12,
     marginTop: 2,
-  },
-  infoBox: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    backgroundColor: "rgba(96,165,250,0.08)",
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 20,
-    width: "100%",
-    borderWidth: 1,
-    borderColor: "rgba(96,165,250,0.15)",
-  },
-  infoText: {
-    flex: 1,
-    color: "rgba(255,255,255,0.75)",
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  lastUpdateBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    marginTop: 16,
-  },
-  lastUpdateText: {
-    color: "rgba(255,255,255,0.4)",
-    fontSize: 11,
-    fontWeight: "500",
   },
   feedbackBox: {
     flexDirection: "row",

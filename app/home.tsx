@@ -206,8 +206,8 @@ export default function HomeTabs({ route }: Props) {
 
         return {
           headerShown: false,
-          tabBarActiveTintColor: isLogout ? "#ff3535" : "#ff3535",
-          tabBarInactiveTintColor: isLogout ? "#ff3535" : "#6B7280",
+          tabBarActiveTintColor: isLogout ? "#940000" : "#940000",
+          tabBarInactiveTintColor: isLogout ? "#940000" : "#6B7280",
           tabBarStyle: {
             backgroundColor: "#16161F",
             borderTopWidth: 1,

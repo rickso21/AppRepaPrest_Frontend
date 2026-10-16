@@ -13,7 +13,7 @@ import ProfileField from "../components/perfil/ProfileField";
 import SaveButton from "../components/perfil/SaveButton";
 import { usePerfil } from "../hooks/perfil/usePerfil";
 
-const BRAND = "#FF6B35";
+const BRAND = "#940000";
 
 export default function PerfilScreen(): JSX.Element {
   const router = useRouter();

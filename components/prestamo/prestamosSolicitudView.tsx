@@ -40,7 +40,7 @@ const IMAGES = {
 
 const AVATARS = {
   carlos:
-    "https://ui-avatars.com/api/?name=Carlos&size=300&background=FF6B35&color=fff&bold=true",
+    "https://ui-avatars.com/api/?name=Carlos&size=300&background=940000&color=fff&bold=true",
   miguel:
     "https://ui-avatars.com/api/?name=Miguel&size=300&background=4ADE80&color=fff&bold=true",
   ana: "https://ui-avatars.com/api/?name=Ana&size=300&background=60A5FA&color=fff&bold=true",
@@ -50,7 +50,7 @@ const AVATARS = {
 const generarAvatar = (nombre: string): string =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(
     nombre,
-  )}&size=300&background=FF6B35&color=fff&bold=true`;
+  )}&size=300&background=940000&color=fff&bold=true`;
 
 const testimonios = [
   {
@@ -264,6 +264,16 @@ export default function PrestamosSolicitudView({
   const handleCrearPrestamo = async () => {
     if (!montoSeleccionado || !plazoSeleccionado) return;
 
+    // 🔒 Obligatorio aceptar términos
+    if (!aceptoTerminosPrestamo) {
+      Alert.alert(
+        "Términos y condiciones",
+        "Debes aceptar los términos y condiciones del préstamo antes de continuar.",
+        [{ text: "Entendido" }],
+      );
+      return;
+    }
+
     setLoadingCrear(true);
     setShowConfirmModal(false);
 
@@ -294,6 +304,9 @@ export default function PrestamosSolicitudView({
     plazoSeleccionado !== null &&
     simulacion !== null &&
     !loadingSimulacion;
+
+  const [aceptoTerminosPrestamo, setAceptoTerminosPrestamo] = useState(false);
+  const [modalTerminosPrestamo, setModalTerminosPrestamo] = useState(false);
 
   // ============================================================
   // Si la solicitud fue enviada → mostrar pantalla de seguimiento
@@ -394,7 +407,7 @@ export default function PrestamosSolicitudView({
                   </Text>
                 </View>
                 <View style={styles.profileStat}>
-                  <Ionicons name="bicycle" size={14} color="#FF6B35" />
+                  <Ionicons name="bicycle" size={14} color="#940000" />
                   <Text style={styles.profileStatText}>
                     {repartidor.entregasHoy} hoy
                   </Text>
@@ -459,7 +472,7 @@ export default function PrestamosSolicitudView({
                   { backgroundColor: "rgba(255,107,53,0.15)" },
                 ]}
               >
-                <Ionicons name="hand-left" size={28} color="#FF6B35" />
+                <Ionicons name="hand-left" size={28} color="#940000" />
               </View>
               <View style={styles.stepContent}>
                 <Text style={styles.stepTitle}>1. Solicita tu préstamo</Text>
@@ -516,7 +529,7 @@ export default function PrestamosSolicitudView({
           <View style={styles.reasonsGrid}>
             <View style={styles.reasonCard}>
               <View style={styles.reasonIconContainer}>
-                <Ionicons name="construct-outline" size={28} color="#FF6B35" />
+                <Ionicons name="construct-outline" size={28} color="#940000" />
               </View>
               <Text style={styles.reasonCardTitle}>Mantenimiento</Text>
               <Text style={styles.reasonCardDesc}>
@@ -572,7 +585,7 @@ export default function PrestamosSolicitudView({
         {/* SECCIÓN DE SOLICITUD */}
         <View style={styles.solicitudSection}>
           <View style={styles.solicitudHeader}>
-            <Ionicons name="flash" size={20} color="#FF6B35" />
+            <Ionicons name="flash" size={20} color="#940000" />
             <Text style={styles.solicitudTitle}>Solicita tu préstamo</Text>
           </View>
 
@@ -616,7 +629,7 @@ export default function PrestamosSolicitudView({
 
           {loadingSimulacion && (
             <View style={styles.loadingBox}>
-              <ActivityIndicator color="#FF6B35" />
+              <ActivityIndicator color="#940000" />
               <Text style={styles.loadingText}>Calculando...</Text>
             </View>
           )}
@@ -637,6 +650,33 @@ export default function PrestamosSolicitudView({
             </>
           )}
         </View>
+
+        {/* ========== BOTÓN SOLICITAR ========== */}
+        {canSubmit && (
+          <View style={styles.buttonWrapper}>
+            <TouchableOpacity
+              onPress={() => setShowConfirmModal(true)}
+              activeOpacity={0.85}
+              disabled={loadingCrear}
+            >
+              <LinearGradient
+                colors={["#940000", "#940000"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.button}
+              >
+                {loadingCrear ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Text style={styles.buttonText}>SOLICITAR AHORA</Text>
+                    <Ionicons name="arrow-forward" size={20} color="#fff" />
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ========== TESTIMONIOS ========== */}
         <Animated.View
@@ -711,39 +751,167 @@ export default function PrestamosSolicitudView({
           </View>
         </Animated.View>
 
-        {/* ========== BOTÓN SOLICITAR ========== */}
-        {canSubmit && (
-          <View style={styles.buttonWrapper}>
-            <TouchableOpacity
-              onPress={() => setShowConfirmModal(true)}
-              activeOpacity={0.85}
-              disabled={loadingCrear}
-            >
-              <LinearGradient
-                colors={["#FF6B35", "#E8552E"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.button}
-              >
-                {loadingCrear ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <>
-                    <Text style={styles.buttonText}>SOLICITAR AHORA</Text>
-                    <Ionicons name="arrow-forward" size={20} color="#fff" />
-                  </>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        )}
-
         <Text style={styles.footerNote}>
           {esNuevoUsuario
             ? "🔒 Tu primer préstamo sin aval ni historial"
             : "🔒 Sin aval • Sin historial crediticio"}
         </Text>
       </ScrollView>
+
+      {/* ========== MODAL TÉRMINOS DEL PRÉSTAMO ========== */}
+      <Modal
+        visible={modalTerminosPrestamo}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalTerminosPrestamo(false)}
+      >
+        <View style={styles.terminosOverlay}>
+          <View style={styles.terminosContainer}>
+            <View style={styles.terminosHeader}>
+              <View style={styles.terminosHeaderLeft}>
+                <Ionicons name="document-text" size={22} color="#940000" />
+                <Text style={styles.terminosTitle}>
+                  Términos y Condiciones del Préstamo
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setModalTerminosPrestamo(false)}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.terminosScroll}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.terminosFecha}>
+                Última actualización: {new Date().toLocaleDateString("es-MX")}
+              </Text>
+
+              <Text style={styles.terminosSectionTitle}>
+                1. Aceptación de los términos
+              </Text>
+              <Text style={styles.terminosText}>
+                Al solicitar un préstamo a través de Delivery Sobre Ruedas,
+                aceptas de manera libre, expresa e informada los presentes
+                Términos y Condiciones, así como las políticas internas de la
+                plataforma. Si no estás de acuerdo con alguno de los puntos, no
+                podrás continuar con la solicitud.
+              </Text>
+
+              <Text style={styles.terminosSectionTitle}>
+                2. Naturaleza del préstamo
+              </Text>
+              <Text style={styles.terminosText}>
+                El préstamo otorgado por Delivery Sobre Ruedas es un
+                financiamiento de carácter personal, destinado exclusivamente a
+                apoyar tus actividades como repartidor dentro de la plataforma.
+                No constituye una relación laboral, sociedad, ni obligación
+                solidaria entre las partes.
+              </Text>
+
+              <Text style={styles.terminosSectionTitle}>
+                3. Monto, plazo y pagos
+              </Text>
+              <Text style={styles.terminosText}>
+                • El monto aprobado, el plazo y el pago quincenal serán los
+                mostrados antes de confirmar tu solicitud.{"\n"}• Los pagos se
+                realizarán en quincenas consecutivas, según el número de pagos
+                seleccionado.{"\n"}• Los pagos podrán ser descontados de tus
+                ganancias dentro de la plataforma o mediante los métodos
+                habilitados por Delivery Sobre Ruedas.{"\n"}• El incumplimiento
+                de un pago podrá generar cargos moratorios conforme a las
+                políticas vigentes.
+              </Text>
+
+              <Text style={styles.terminosSectionTitle}>
+                4. Obligaciones del solicitante
+              </Text>
+              <Text style={styles.terminosText}>
+                Al aceptar este contrato te comprometes a:{"\n"}• Proporcionar
+                información veraz, completa y actualizada.{"\n"}• Utilizar el
+                préstamo para los fines declarados.{"\n"}• Realizar los pagos en
+                las fechas acordadas.{"\n"}• Mantener activa tu cuenta en
+                Delivery Sobre Ruedas durante la vigencia del préstamo.{"\n"}•
+                Notificar cualquier cambio en tus datos de contacto o situación
+                laboral.{"\n"}• No ceder, transferir ni subrogar el préstamo a
+                terceros sin autorización previa.
+              </Text>
+
+              <Text style={styles.terminosSectionTitle}>
+                5. Obligaciones de Delivery Sobre Ruedas
+              </Text>
+              <Text style={styles.terminosText}>
+                • Entregar el monto aprobado en el tiempo acordado.{"\n"}•
+                Mantener informado al solicitante sobre el estado del préstamo.
+                {"\n"}• Resguardar la información personal conforme a nuestra
+                Política de Privacidad.{"\n"}• Proporcionar un canal de atención
+                para dudas o aclaraciones.
+              </Text>
+
+              <Text style={styles.terminosSectionTitle}>
+                6. Incumplimiento y cobranza
+              </Text>
+              <Text style={styles.terminosText}>
+                En caso de incumplimiento en los pagos, Delivery Sobre Ruedas
+                podrá iniciar gestiones de cobranza, suspender temporalmente el
+                acceso a nuevos préstamos, y/o aplicar cargos moratorios. El
+                incumplimiento reiterado podrá derivar en la suspensión de tu
+                cuenta dentro de la plataforma.
+              </Text>
+
+              <Text style={styles.terminosSectionTitle}>
+                7. Cancelación anticipada
+              </Text>
+              <Text style={styles.terminosText}>
+                El solicitante podrá liquidar el préstamo de forma anticipada,
+                cubriendo el saldo pendiente conforme al desglose vigente. No se
+                aplicarán penalizaciones por pago anticipado, salvo intereses ya
+                devengados.
+              </Text>
+
+              <Text style={styles.terminosSectionTitle}>
+                8. Protección de datos
+              </Text>
+              <Text style={styles.terminosText}>
+                Tus datos personales serán tratados conforme a la Ley Federal de
+                Protección de Datos Personales en Posesión de los Particulares.
+                No serán compartidos con terceros sin tu consentimiento, salvo
+                por obligación legal o para fines de cobranza.
+              </Text>
+
+              <Text style={styles.terminosSectionTitle}>9. Modificaciones</Text>
+              <Text style={styles.terminosText}>
+                Delivery Sobre Ruedas se reserva el derecho de modificar estos
+                Términos y Condiciones. Las modificaciones serán notificadas a
+                través de la app y entrarán en vigor a partir de su publicación.
+              </Text>
+
+              <Text style={styles.terminosSectionTitle}>10. Aceptación</Text>
+              <Text style={styles.terminosText}>
+                Al marcar la casilla y confirmar tu solicitud, aceptas haber
+                leído y comprendido los presentes Términos y Condiciones, así
+                como las políticas internas de Delivery Sobre Ruedas aplicables
+                al otorgamiento de préstamos.
+              </Text>
+
+              <View style={{ height: 16 }} />
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.terminosAceptarBtn}
+              onPress={() => {
+                setAceptoTerminosPrestamo(true);
+                setModalTerminosPrestamo(false);
+              }}
+            >
+              <Ionicons name="checkmark-circle" size={18} color="#fff" />
+              <Text style={styles.terminosAceptarText}>
+                Acepto los términos
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* ========== MODAL DE CONFIRMACIÓN ========== */}
       <Modal
@@ -755,7 +923,7 @@ export default function PrestamosSolicitudView({
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalIconContainer}>
-              <Ionicons name="shield-checkmark" size={50} color="#FF6B35" />
+              <Ionicons name="shield-checkmark" size={50} color="#940000" />
             </View>
             <Text style={styles.modalTitle}>
               {esNuevoUsuario
@@ -766,6 +934,34 @@ export default function PrestamosSolicitudView({
               Vas a solicitar ${montoSeleccionado?.monto} a {plazoSeleccionado}{" "}
               {plazoSeleccionado === 1 ? "quincena" : "quincenas"}
             </Text>
+
+            {/* 🔒 CHECKBOX DE TÉRMINOS */}
+            <TouchableOpacity
+              style={styles.terminosCheckboxRow}
+              onPress={() => setAceptoTerminosPrestamo(!aceptoTerminosPrestamo)}
+              activeOpacity={0.7}
+            >
+              <View
+                style={[
+                  styles.terminosCheckbox,
+                  aceptoTerminosPrestamo && styles.terminosCheckboxChecked,
+                ]}
+              >
+                {aceptoTerminosPrestamo && (
+                  <Ionicons name="checkmark" size={14} color="#fff" />
+                )}
+              </View>
+              <Text style={styles.terminosCheckboxText}>
+                Acepto los{" "}
+                <Text
+                  style={styles.terminosCheckboxLink}
+                  onPress={() => setModalTerminosPrestamo(true)}
+                >
+                  Términos y Condiciones del Préstamo
+                </Text>
+              </Text>
+            </TouchableOpacity>
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonCancel]}
@@ -774,8 +970,13 @@ export default function PrestamosSolicitudView({
                 <Text style={styles.modalButtonText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonConfirm]}
+                style={[
+                  styles.modalButton,
+                  styles.modalButtonConfirm,
+                  !aceptoTerminosPrestamo && { opacity: 0.5 },
+                ]}
                 onPress={handleCrearPrestamo}
+                disabled={!aceptoTerminosPrestamo}
               >
                 <Text
                   style={[
@@ -862,7 +1063,7 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     borderWidth: 2,
-    borderColor: "#FF6B35",
+    borderColor: "#940000",
   },
   profileInfo: { flex: 1 },
   profileName: { fontSize: 18, fontWeight: "700", color: "#fff" },
@@ -919,7 +1120,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: "rgba(255,255,255,0.3)",
   },
-  rotatingDotActive: { width: 24, backgroundColor: "#FF6B35" },
+  rotatingDotActive: { width: 24, backgroundColor: "#940000" },
 
   howItWorks: {
     marginTop: 20,
@@ -990,11 +1191,11 @@ const styles = StyleSheet.create({
 
   solicitudSection: {
     marginTop: 24,
-    backgroundColor: "rgba(255,107,53,0.05)",
+    backgroundColor: "rgba(206, 199, 196, 0.05)",
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: "rgba(255,107,53,0.2)",
+    borderColor: "rgba(228, 66, 7, 0.2)",
   },
   solicitudHeader: {
     flexDirection: "row",
@@ -1017,7 +1218,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  stepNumberText: { color: "#FF6B35", fontSize: 11, fontWeight: "800" },
+  stepNumberText: { color: "#940000", fontSize: 11, fontWeight: "800" },
   stepLabel: { color: "#fff", fontSize: 14, fontWeight: "700" },
   loadingBox: {
     flexDirection: "row",
@@ -1082,7 +1283,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalButtonCancel: { backgroundColor: "rgba(255,255,255,0.05)" },
-  modalButtonConfirm: { backgroundColor: "#FF6B35" },
+  modalButtonConfirm: { backgroundColor: "#940000" },
   modalButtonText: {
     fontSize: 14,
     fontWeight: "600",
@@ -1119,7 +1320,7 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     borderWidth: 2,
-    borderColor: "#FF6B35",
+    borderColor: "#940000",
   },
   testimonioInfo: { flex: 1 },
   testimonioNombre: { fontSize: 15, fontWeight: "700", color: "#fff" },
@@ -1150,5 +1351,115 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: "rgba(255,255,255,0.2)",
   },
-  testimoniosDotActive: { width: 24, backgroundColor: "#FF6B35" },
+  testimoniosDotActive: { width: 24, backgroundColor: "#940000" },
+  // ═══════════ CHECKBOX DE TÉRMINOS EN MODAL DE CONFIRMACIÓN ═══════════
+  terminosCheckboxRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+    paddingHorizontal: 4,
+  },
+  terminosCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.3)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  terminosCheckboxChecked: {
+    backgroundColor: "#940000",
+    borderColor: "#940000",
+  },
+  terminosCheckboxText: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 12.5,
+    flex: 1,
+    lineHeight: 17,
+  },
+  terminosCheckboxLink: {
+    color: "#ff5555",
+    fontWeight: "700",
+    textDecorationLine: "underline",
+  },
+
+  // ═══════════ MODAL DE TÉRMINOS DEL PRÉSTAMO ═══════════
+  terminosOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.85)",
+    justifyContent: "flex-end",
+  },
+  terminosContainer: {
+    backgroundColor: "#16161F",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "90%",
+    paddingTop: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderTopWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  terminosHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  terminosHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+  terminosTitle: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "800",
+    flex: 1,
+  },
+  terminosFecha: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 11,
+    marginBottom: 16,
+    fontStyle: "italic",
+  },
+  terminosScroll: {
+    maxHeight: 500,
+  },
+  terminosSectionTitle: {
+    color: "#ff5555",
+    fontSize: 14,
+    fontWeight: "800",
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  terminosText: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  terminosAceptarBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#940000",
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginTop: 16,
+  },
+  terminosAceptarText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
 });

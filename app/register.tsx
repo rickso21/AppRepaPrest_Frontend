@@ -504,7 +504,7 @@ export default function RegisterScreen(): JSX.Element {
             <Ionicons
               name={icon as any}
               size={20}
-              color={error ? "#ff3535" : isFocused ? "#ff3535" : "#888"}
+              color={error ? "#940000" : isFocused ? "#940000" : "#888"}
               style={styles.inputIcon}
             />
             <Text
@@ -525,7 +525,7 @@ export default function RegisterScreen(): JSX.Element {
           </Pressable>
           {!!error && (
             <View style={styles.errorRow}>
-              <Ionicons name="alert-circle-outline" size={13} color="#ff3535" />
+              <Ionicons name="alert-circle-outline" size={13} color="#940000" />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
@@ -545,10 +545,11 @@ export default function RegisterScreen(): JSX.Element {
           <Ionicons
             name={icon as any}
             size={20}
-            color={error ? "#ff3535" : isFocused ? "#ff3535" : "#888"}
+            color={error ? "#940000" : isFocused ? "#940000" : "#888"}
             style={styles.inputIcon}
           />
           <TextInput
+            key={options?.secure ? `secure-${options?.isSecureVisible}` : key}
             style={[styles.input, options?.secure && styles.passwordInput]}
             placeholder={placeholder}
             placeholderTextColor="rgba(0,0,0,0.4)"
@@ -577,14 +578,14 @@ export default function RegisterScreen(): JSX.Element {
                   options.isSecureVisible ? "eye-outline" : "eye-off-outline"
                 }
                 size={20}
-                color="rgba(255,255,255,0.5)"
+                color={isFocused ? "#940000" : "#666"}
               />
             </Pressable>
           )}
         </View>
         {!!error && (
           <View style={styles.errorRow}>
-            <Ionicons name="alert-circle-outline" size={13} color="#ff3535" />
+            <Ionicons name="alert-circle-outline" size={13} color="#940000" />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
@@ -602,7 +603,7 @@ export default function RegisterScreen(): JSX.Element {
         : score <= 4
           ? "Media"
           : "Fuerte";
-    const color = score <= 2 ? "#ff3535" : score <= 4 ? "#FFB020" : "#2ECC71";
+    const color = score <= 2 ? "#940000" : score <= 4 ? "#ff2020" : "#2ECC71";
 
     return (
       <View style={styles.strengthBlock}>
@@ -622,7 +623,7 @@ export default function RegisterScreen(): JSX.Element {
   const renderFotos = () => (
     <View style={styles.photoSection}>
       <View style={styles.photoSectionHeader}>
-        <Ionicons name="images-outline" size={18} color="#ff3535" />
+        <Ionicons name="images-outline" size={18} color="#940000" />
         <Text style={styles.photoSectionTitle}>Fotos (opcional)</Text>
       </View>
 
@@ -634,7 +635,7 @@ export default function RegisterScreen(): JSX.Element {
           {avatarUri ? (
             <Image source={{ uri: avatarUri }} style={styles.avatarPreview} />
           ) : (
-            <Ionicons name="camera-outline" size={28} color="#ff3535" />
+            <Ionicons name="camera-outline" size={28} color="#940000" />
           )}
         </Pressable>
         <View style={{ flex: 1 }}>
@@ -664,7 +665,7 @@ export default function RegisterScreen(): JSX.Element {
           </>
         ) : (
           <View style={styles.portadaPlaceholder}>
-            <Ionicons name="image-outline" size={32} color="#ff3535" />
+            <Ionicons name="image-outline" size={32} color="#940000" />
             <Text style={styles.photoHint}>Toca para elegir portada</Text>
           </View>
         )}
@@ -730,7 +731,7 @@ export default function RegisterScreen(): JSX.Element {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.modalSection}>
-              <Ionicons name="shield-checkmark" size={24} color="#ff3535" />
+              <Ionicons name="shield-checkmark" size={24} color="#940000" />
               <Text style={styles.modalSectionTitle}>
                 Seguridad de tus datos
               </Text>
@@ -744,7 +745,7 @@ export default function RegisterScreen(): JSX.Element {
             </View>
 
             <View style={styles.modalSection}>
-              <Ionicons name="trash-outline" size={24} color="#ff3535" />
+              <Ionicons name="trash-outline" size={24} color="#940000" />
               <Text style={styles.modalSectionTitle}>
                 Eliminación de cuenta
               </Text>
@@ -770,7 +771,7 @@ export default function RegisterScreen(): JSX.Element {
               <Ionicons
                 name="document-text-outline"
                 size={24}
-                color="#ff3535"
+                color="#940000"
               />
               <Text style={styles.modalSectionTitle}>
                 Política de privacidad
@@ -875,7 +876,7 @@ export default function RegisterScreen(): JSX.Element {
                   {item}
                 </Text>
                 {form.ciudad === item && (
-                  <Ionicons name="checkmark-circle" size={20} color="#ff3535" />
+                  <Ionicons name="checkmark-circle" size={20} color="#940000" />
                 )}
               </TouchableOpacity>
             )}
@@ -898,7 +899,7 @@ export default function RegisterScreen(): JSX.Element {
     rol === "administrador"
       ? { label: "Administrador", icon: "shield-checkmark", color: "#2196F3" }
       : rol === "asociado"
-        ? { label: "Asociado", icon: "bicycle", color: "#ff3535" }
+        ? { label: "Asociado", icon: "bicycle", color: "#940000" }
         : null;
 
   return (
@@ -940,23 +941,13 @@ export default function RegisterScreen(): JSX.Element {
                 </Text>
 
                 {rolInfo && (
-                  <View
-                    style={[
-                      styles.roleChip,
-                      {
-                        borderColor: rolInfo.color + "55",
-                        backgroundColor: rolInfo.color + "1A",
-                      },
-                    ]}
-                  >
+                  <View style={styles.roleChip}>
                     <Ionicons
                       name={rolInfo.icon as any}
                       size={15}
-                      color={rolInfo.color}
+                      color="#940000" // 👈 icono rojo
                     />
-                    <Text
-                      style={[styles.roleChipText, { color: rolInfo.color }]}
-                    >
+                    <Text style={styles.roleChipText}>
                       Registrándote como {rolInfo.label}
                     </Text>
                   </View>
@@ -1122,10 +1113,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,
-    borderWidth: 1,
+    borderWidth: 1.5,
+    borderColor: "#940000", // 👈 borde rojo
+    backgroundColor: "#ffffff", // 👈 fondo blanco
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  roleChipText: { fontSize: 12.5, fontWeight: "700" },
-
+  roleChipText: {
+    fontSize: 12.5,
+    fontWeight: "700",
+    color: "#940000", // 👈 letras rojas
+  },
   // ═══════════ FORMULARIO (tarjeta blanca) ═══════════
   formContainer: {
     width: "100%",
@@ -1152,11 +1153,11 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   inputFocused: {
-    borderColor: "#ff3535",
+    borderColor: "#940000",
     backgroundColor: "#fff5f0",
   },
   inputError: {
-    borderColor: "#ff3535",
+    borderColor: "#940000",
     backgroundColor: "#fff0f0",
   },
   inputIcon: { marginRight: 12 },
@@ -1177,7 +1178,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  errorText: { color: "#ff3535", fontSize: 12, marginLeft: 5, flex: 1 },
+  errorText: { color: "#940000", fontSize: 12, marginLeft: 5, flex: 1 },
 
   // ═══════════ FORTALEZA DE CONTRASEÑA ═══════════
   strengthBlock: {
@@ -1212,24 +1213,24 @@ const styles = StyleSheet.create({
     marginRight: 12,
     backgroundColor: "#f5f5f5", // 👈 antes rgba(255,255,255,0.05)
   },
-  checkboxChecked: { backgroundColor: "#ff3535", borderColor: "#ff3535" },
+  checkboxChecked: { backgroundColor: "#940000", borderColor: "#940000" },
   terminosText: { fontSize: 13, color: "#555", flex: 1 }, // 👈 antes rgba(255,255,255,0.7)
   terminosLink: {
-    color: "#ff3535",
+    color: "#940000",
     fontWeight: "700",
     textDecorationLine: "underline",
   },
 
   // ═══════════ BOTÓN ═══════════
   registerButton: {
-    backgroundColor: "#ff3535",
+    backgroundColor: "#940000",
     paddingVertical: 18,
     borderRadius: 18,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
-    shadowColor: "#ff3535",
+    shadowColor: "#940000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.5,
     shadowRadius: 16,
@@ -1251,7 +1252,7 @@ const styles = StyleSheet.create({
     marginTop: 22,
   },
   loginText: { color: "#666", fontSize: 14 }, // 👈 antes rgba(255,255,255,0.6)
-  loginLink: { color: "#ff3535", fontSize: 14, fontWeight: "700" },
+  loginLink: { color: "#940000", fontSize: 14, fontWeight: "700" },
 
   // ═══════════ VERSIÓN (fuera de la tarjeta) ═══════════
   version: {
@@ -1315,7 +1316,7 @@ const styles = StyleSheet.create({
   },
   estadoItemSelected: { backgroundColor: "rgba(255,107,53,0.08)" },
   estadoText: { fontSize: 15, color: "rgba(255,255,255,0.8)" },
-  estadoTextSelected: { color: "#ff3535", fontWeight: "600" },
+  estadoTextSelected: { color: "#940000", fontWeight: "600" },
   emptyContainer: { paddingVertical: 30, alignItems: "center" },
   emptyText: { color: "rgba(255,255,255,0.4)", fontSize: 14 },
 
@@ -1361,7 +1362,7 @@ const styles = StyleSheet.create({
   },
   modalSubText: {
     fontSize: 13,
-    color: "#ff3535",
+    color: "#940000",
     fontWeight: "600",
     lineHeight: 18,
     marginTop: 6,
@@ -1369,14 +1370,14 @@ const styles = StyleSheet.create({
   },
   modalSubText_: {
     fontSize: 13,
-    color: "#ff3535",
+    color: "#940000",
     fontWeight: "600",
     lineHeight: 18,
     marginTop: 6,
     paddingLeft: 4,
   },
   modalAcceptButton: {
-    backgroundColor: "#ff3535",
+    backgroundColor: "#940000",
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",

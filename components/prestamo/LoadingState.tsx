@@ -7,7 +7,7 @@ type Props = {
 export default function LoadingState({ mensaje = "Cargando..." }: Props) {
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color="#FF6B35" />
+      <ActivityIndicator size="large" color="#940000" />
       <Text style={styles.text}>{mensaje}</Text>
     </View>
   );

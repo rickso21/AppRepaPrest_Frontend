@@ -69,8 +69,8 @@ const styles = StyleSheet.create({
   avatarGlow: {
     borderRadius: 36,
     padding: 3,
-    backgroundColor: "#FF6B35",
-    shadowColor: "#FF6B35",
+    backgroundColor: "#940000",
+    shadowColor: "#940000",
     shadowOpacity: 0.9,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
 
   subtitle: {
     fontSize: 16,
-    color: "#FF6B35",
+    color: "#940000",
     fontWeight: "700",
     letterSpacing: 1,
     marginTop: 3,

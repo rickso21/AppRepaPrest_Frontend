@@ -2,21 +2,21 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    Pressable,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Image,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { authService } from "@/services/auth/AuthService";
 import { api } from "@/services/conector/api";
 
-const BRAND = "#FF6B35";
+const BRAND = "#940000";
 const BG = "#0F0F17";
 const CARD = "#16161F";
 const BORDER = "rgba(255,255,255,0.07)";

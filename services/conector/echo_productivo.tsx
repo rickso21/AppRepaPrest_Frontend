@@ -3,11 +3,11 @@ import * as SecureStore from "expo-secure-store";
 import * as PusherModule from "pusher-js";
 import { API_CONFIG } from "../../config/ApiConfig";
 
-// ─── Debug flags ──────────────────────────────────────────────
-const DEBUG_ECHO = __DEV__;
-const DEBUG_PUSHER = __DEV__;
-const DEBUG_ERRORS = __DEV__;
+const DEBUG_ECHO = __DEV__ && false;
+const DEBUG_PUSHER = __DEV__ && false;
+const DEBUG_ERRORS = true;
 
+// Constructor Pusher
 const Pusher: any =
   (PusherModule as any).Pusher ?? (PusherModule as any).default ?? PusherModule;
 
@@ -24,89 +24,47 @@ global.Pusher = Pusher;
 
 if (DEBUG_PUSHER) {
   // @ts-ignore
-  Pusher.logToConsole = true;
+  Pusher.logToConsole = DEBUG_PUSHER;
 }
+
+// Host limpio
+const getWsHost = (): string => {
+  let host = API_CONFIG.baseURL.replace(/^https?:\/\//, "");
+  host = host.split("/")[0];
+  host = host.split(":")[0];
+  return host;
+};
 
 declare global {
   var __pusher_instance: any;
-  var __echoReadyListeners: Set<() => void> | undefined;
-  var __echoReady: boolean | undefined;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// 🔔 Mini emitter de "echo ready" (compatible con Hermes / RN / web)
-// ═══════════════════════════════════════════════════════════════
-// Vive en globalThis para sobrevivir a Fast Refresh de Metro: si se
-// reevalúa el módulo, los listeners pendientes no se pierden.
-
-const readyListeners: Set<() => void> =
-  (globalThis as any).__echoReadyListeners ??
-  ((globalThis as any).__echoReadyListeners = new Set<() => void>());
-
-function notifyEchoReady() {
-  (globalThis as any).__echoReady = true;
-
-  const pending = Array.from(readyListeners);
-  readyListeners.clear();
-
-  pending.forEach((fn) => {
-    try {
-      fn();
-    } catch (e) {
-      if (DEBUG_ERRORS) console.error("[echo] listener error:", e);
-    }
-  });
-}
-
-/**
- * Suscribirse a "echo listo".
- * Si ya está listo, el callback se ejecuta en microtask (no en el render).
- * Devuelve una función para cancelar la suscripción.
- */
-export function onEchoReady(fn: () => void): () => void {
-  if ((globalThis as any).__echoReady === true) {
-    Promise.resolve().then(fn);
-    return () => {};
-  }
-  readyListeners.add(fn);
-  return () => {
-    readyListeners.delete(fn);
-  };
-}
-
-// ═══════════════════════════════════════════════════════════════
-// Instancia única (persiste entre hot reloads del módulo)
-// ═══════════════════════════════════════════════════════════════
-
-let pusherInstance: any = (globalThis as any).__pusher_instance;
-
-if (!pusherInstance) {
+if (!globalThis.__pusher_instance) {
   if (DEBUG_ECHO) {
-    console.log("[echo] 🔧 Creando instancia de Pusher (primera vez)");
+    //console.log("[echo] Creando nueva instancia de Pusher");
   }
 
-  pusherInstance = new Pusher(API_CONFIG.reverbKey, {
+  globalThis.__pusher_instance = new Pusher(API_CONFIG.reverbKey, {
     cluster: "mt1",
 
-    wsHost: API_CONFIG.wsHost, // api.deliverysobreruedas.com
-    wsPort: 80,
-    wssPort: 443,
+    // ── Host / puertos WSS por dominio público ──
+    wsHost: API_CONFIG.reverbPort,
+    wsPort: API_CONFIG.reverbPort,
+    wssPort: API_CONFIG.reverbUseTLS,
 
-    forceTLS: true,
+    // ── TLS: true en prod, false en dev ──
+    forceTLS: API_CONFIG.reverbUseTLS,
 
-    // ✅ Ambos transportes (ws se convierte en wss por forceTLS)
-    enabledTransports: ["ws", "wss"],
+    // ── En prod solo WSS (evita intentos ws:// bloqueados por el SO) ──
+    enabledTransports: API_CONFIG.reverbUseTLS ? ["wss"] : ["ws", "wss"],
 
-    // ✅ Path de Reverb
-    path: "/app",
-
-    // ✅ Sin telemetría
+    // ── Recomendado: sin telemetría ──
     disableStats: true,
-    enableStats: false,
+    enableStats: false, // por compatibilidad con versiones viejas
 
+    // ── Endpoint de auth para canales privados ──
     authEndpoint: API_CONFIG.broadcastingAuthUrl,
 
-    // ✅ Authorizer con Bearer token
     authorizer: (channel: any) => ({
       authorize: async (socketId: string, callback: Function) => {
         try {
@@ -115,14 +73,11 @@ if (!pusherInstance) {
             token = await SecureStore.getItemAsync("userToken");
           } catch (err) {
             if (DEBUG_ERRORS) {
-              console.error("[echo] Error leyendo token:", err);
+              //console.error("[echo] No se pudo leer el token:", err);
             }
           }
 
           if (!token) {
-            if (DEBUG_ERRORS) {
-              console.error("[echo] ❌ Token ausente en SecureStore");
-            }
             callback(new Error("Token de autenticación ausente"), null);
             return;
           }
@@ -144,8 +99,7 @@ if (!pusherInstance) {
             if (DEBUG_ERRORS) {
               const errorBody = await response.text().catch(() => "");
               console.error(
-                `[echo] ❌ Auth falló (${response.status}):`,
-                errorBody,
+                `[echo] Auth falló (${response.status}): ${errorBody}`,
               );
             }
             callback(
@@ -164,58 +118,20 @@ if (!pusherInstance) {
           callback(null, data);
         } catch (err: any) {
           if (DEBUG_ERRORS) {
-            console.error("[echo] ❌ Excepción en authorize:", err);
+            //console.error("[echo] Excepción en authorize:", err);
           }
           callback(err, null);
         }
       },
     }),
   });
-
-  // Guardar en globalThis para que useRealtimeComunidad lo encuentre
-  (globalThis as any).__pusher_instance = pusherInstance;
-
-  // ─── Listeners del socket (solo en dev) ──────────────────────
-  if (DEBUG_ECHO) {
-    pusherInstance.connection.bind("state_change", (states: any) => {
-      console.log(`[echo] 🔄 Socket: ${states.previous} → ${states.current}`);
-    });
-
-    pusherInstance.connection.bind("connected", () => {
-      console.log(
-        "[echo] ✅ Socket CONECTADO. socket_id:",
-        pusherInstance.connection.socket_id,
-      );
-    });
-
-    pusherInstance.connection.bind("disconnected", () => {
-      console.warn("[echo] ⚠️ Socket DESCONECTADO");
-    });
-
-    pusherInstance.connection.bind("error", (err: any) => {
-      console.error("[echo] ❌ Socket ERROR:", err);
-    });
-
-    pusherInstance.connection.bind("unavailable", () => {
-      console.warn("[echo] ⚠️ Socket UNAVAILABLE");
-    });
-
-    pusherInstance.connection.bind("failed", () => {
-      console.error("[echo] ❌ Socket FAILED");
-    });
-  }
-
-  // 🔔 Avisar a los hooks que la instancia ya está lista
-  notifyEchoReady();
 } else {
   if (DEBUG_ECHO) {
-    console.log("[echo] ♻️ Reutilizando instancia existente de Pusher");
+    //console.log("[echo] Reutilizando instancia existente de Pusher");
   }
-  // Ya estaba lista (p. ej. Fast Refresh): desbloquear a quien esté esperando
-  notifyEchoReady();
 }
 
-const pusher = pusherInstance;
+const pusher = globalThis.__pusher_instance;
 
 const toPrivateChannelName = (channelName: string): string =>
   channelName.startsWith("private-") ? channelName : `private-${channelName}`;
@@ -227,7 +143,7 @@ export const echo = {
     const fullName = toPrivateChannelName(channelName);
 
     if (DEBUG_ECHO) {
-      console.log(`[echo] 📡 Suscribiendo a: ${fullName}`);
+      //console.log(`[echo] 📡 Suscribiendo a: ${fullName}`);
     }
 
     let channel: any;
@@ -235,7 +151,7 @@ export const echo = {
       channel = pusher.subscribe(fullName);
     } catch (err) {
       if (DEBUG_ERRORS) {
-        console.error(`[echo] ❌ Error suscribiendo a ${fullName}:`, err);
+        //console.error(`[echo] Error suscribiendo a ${fullName}:`, err);
       }
       return {
         listen: () => undefined,
@@ -246,36 +162,39 @@ export const echo = {
 
     channel.bind("pusher:subscription_error", (err: any) => {
       if (DEBUG_ERRORS) {
-        console.error(`[echo] ❌ subscription_error en ${fullName}:`, err);
+        //console.error(`[echo] Error de suscripción en ${fullName}:`, err);
       }
     });
 
     if (DEBUG_ECHO) {
       channel.bind("pusher:subscription_succeeded", () => {
-        console.log(`[echo] ✅ Suscripción CONFIRMADA: ${fullName}`);
+        //console.log(`[echo] Suscripción confirmada: ${fullName}`);
       });
     }
 
     return {
       listen(eventName: string, callback: Listener) {
+        const cleanName = eventName.startsWith(".")
+          ? eventName.slice(1)
+          : eventName;
         try {
-          channel.bind(eventName, callback);
-          if (DEBUG_ECHO) {
-            console.log(`[echo] 🎧 Listener: ${eventName}`);
-          }
+          channel.bind(cleanName, callback);
         } catch (err) {
           if (DEBUG_ERRORS) {
-            console.error(`[echo] ❌ Error listener ${eventName}:`, err);
+            //console.error(`[echo] Error listener ${cleanName}:`, err);
           }
         }
         return this;
       },
       stopListening(eventName: string) {
+        const cleanName = eventName.startsWith(".")
+          ? eventName.slice(1)
+          : eventName;
         try {
-          channel.unbind(eventName);
+          channel.unbind(cleanName);
         } catch (err) {
           if (DEBUG_ERRORS) {
-            console.error(`[echo] ❌ Error unbind ${eventName}:`, err);
+            //console.error(`[echo] Error unbind ${cleanName}:`, err);
           }
         }
         return this;
@@ -287,13 +206,13 @@ export const echo = {
   leave(channelName: string) {
     const fullName = toPrivateChannelName(channelName);
     if (DEBUG_ECHO) {
-      console.log(`[echo] 🔌 Abandonando canal: ${fullName}`);
+      //console.log(`[echo] Abandonando canal: ${fullName}`);
     }
     try {
       pusher.unsubscribe(fullName);
     } catch (err) {
       if (DEBUG_ERRORS) {
-        console.error(`[echo] ❌ Error abandonando ${fullName}:`, err);
+        //console.error(`[echo] Error abandonando ${fullName}:`, err);
       }
     }
   },
@@ -303,12 +222,10 @@ export const echo = {
       pusher.disconnect();
     } catch (err) {
       if (DEBUG_ERRORS) {
-        console.error("[echo] ❌ Error desconectando Pusher:", err);
+        //console.error("[echo] Error desconectando Pusher:", err);
       }
     }
   },
 
-  get pusher() {
-    return pusher;
-  },
+  pusher,
 };
