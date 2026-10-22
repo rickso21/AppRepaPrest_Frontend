@@ -89,12 +89,32 @@ export default function AsesorPanel() {
         setLoading(true);
       }
 
+      // 1. Verificamos si hay token antes de hacer la petición
+      const token = await authService.getToken();
+      if (!token) {
+        console.log("[asesor] No hay token, redirigiendo a login...");
+        handleLogout();
+        return;
+      }
+
       const data = await asesorService.listarPrestamos();
 
       if (!mountedRef.current) return;
 
       setPrestamos(data);
     } catch (e: any) {
+      // 2. Capturamos el error de Laravel
+      const esNoAutenticado =
+        e?.response?.status === 401 ||
+        e?.message?.includes("Unauthenticated") ||
+        e?.msg?.includes("Unauthenticated");
+
+      if (esNoAutenticado) {
+        console.log("[asesor] Sesión expirada o inválida. Cerrando sesión...");
+        handleLogout();
+        return;
+      }
+
       console.error("[asesor] error cargando préstamos:", e?.message);
 
       if (!silencioso) {

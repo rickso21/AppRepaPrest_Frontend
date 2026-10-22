@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Platform } from "react-native";
@@ -15,6 +16,7 @@ type UserParams = {
   ciudad?: string;
   avatarUrl?: string | null;
   portadaUrl?: string | null;
+  grupoNombre?: string; // ⬅️ NUEVO
 };
 
 type UserData = {
@@ -43,10 +45,13 @@ type PrestamoBloqueante = {
   pagos_realizados: number;
 };
 
-async function getStorage(key: string): Promise<string | null> {
+// ─────────────────────────────────────────────
+// Storage: userData vive en AsyncStorage, token en SecureStore
+// ─────────────────────────────────────────────
+async function getStoredUserData(): Promise<UserData | null> {
   try {
-    if (Platform.OS === "web") return localStorage.getItem(key);
-    return await SecureStore.getItemAsync(key);
+    const raw = await AsyncStorage.getItem("userData");
+    return raw ? (JSON.parse(raw) as UserData) : null;
   } catch {
     return null;
   }
@@ -54,13 +59,14 @@ async function getStorage(key: string): Promise<string | null> {
 
 async function clearSession() {
   try {
+    // token en SecureStore
     if (Platform.OS === "web") {
-      localStorage.removeItem("userData");
-      localStorage.removeItem("token");
+      localStorage.removeItem("userToken");
     } else {
-      await SecureStore.deleteItemAsync("userData");
-      await SecureStore.deleteItemAsync("token");
+      await SecureStore.deleteItemAsync("userToken").catch(() => {});
     }
+    // userData + tokenExpiry + perfil_data en AsyncStorage
+    await AsyncStorage.multiRemove(["userData", "tokenExpiry", "perfil_data"]);
   } catch {}
 }
 
@@ -74,21 +80,22 @@ export function useUserData(raw: UserParams, args: Args = {}) {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [inhabilitando, setInhabilitando] = useState(false);
 
+  // Cargar userData desde AsyncStorage (fallback a params)
   useEffect(() => {
     let active = true;
-    getStorage("userData").then((rawData) => {
-      if (!active || !rawData) return;
-      try {
-        setUserData(JSON.parse(rawData) as UserData);
-      } catch {}
-    });
+    (async () => {
+      const stored = await getStoredUserData();
+      if (!active) return;
+      setUserData(stored);
+    })();
     return () => {
       active = false;
     };
   }, []);
 
+  // ── Derivados ───────────────────────────────
   const id = String(userData?.id ?? "") || raw.userId || "";
-  const grupoNombre = userData?.grupo_nombre ?? "";
+  const grupoNombre = userData?.grupo_nombre ?? raw.grupoNombre ?? ""; // ⬅️ fallback a params
   const nombre = userData?.nombre || raw.nombre || "";
 
   const apellidoPaterno =
@@ -119,10 +126,11 @@ export function useUserData(raw: UserParams, args: Args = {}) {
     nombre ||
     "Usuario";
 
+  // ⬇️ Orden: storage → params → null
   const avatarUrl = userData?.avatar_url ?? raw.avatarUrl ?? null;
   const portadaUrl = userData?.portada_url ?? raw.portadaUrl ?? null;
 
-  // Inhabilitar cuenta
+  // ── Inhabilitar cuenta ──────────────────────
   const ejecutarInhabilitacion = useCallback(async () => {
     if (inhabilitando) return;
     setInhabilitando(true);
@@ -135,7 +143,7 @@ export function useUserData(raw: UserParams, args: Args = {}) {
 
         Alert.alert(
           "Cuenta Eliminada",
-          "Gracias por ser de la familia Delivery Sobre Ruedas.\n\nsi tienes dudas, contacta a soporte.",
+          "Gracias por ser de la familia Delivery Sobre Ruedas.\n\nSi tienes dudas, contacta a soporte.",
           [
             {
               text: "OK",
@@ -176,7 +184,7 @@ export function useUserData(raw: UserParams, args: Args = {}) {
   const handleInhabilitarCuenta = useCallback(() => {
     Alert.alert(
       "Eliminar cuenta",
-      "¿Estás seguro que quieres eliminar tu cuenta?\n\nEsta accion es permanente.",
+      "¿Estás seguro que quieres eliminar tu cuenta?\n\nEsta acción es permanente.",
       [
         { text: "Cancelar", style: "cancel" },
         {

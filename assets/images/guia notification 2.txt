@@ -1,0 +1,172 @@
+================================================================================
+GUÍA DEFINITIVA DE NOTIFICACIONES PUSH Y WEBSOCKETS
+Stack: React Native (Expo) + Laravel + Firebase (FCM V1)
+Proyecto: Delivery Sobre Ruedas
+================================================================================
+
+--------------------------------------------------------------------------------
+1. CONFIGURACIÓN INICIAL (FIREBASE Y EXPO)
+--------------------------------------------------------------------------------
+1.1 Firebase:
+  - Ir a Configuración del proyecto > Cuentas de servicio.
+  - Generar nueva clave privada (descargar archivo .json).
+  - Guardar el archivo "google-services.json" en la raíz del proyecto Expo.
+
+1.2 Expo (expo.dev):
+  - Project Settings > Credentials > Android > Tu Package Name.
+  - Buscar "FCM V1 service account key" (NO confundir con EAS Submit).
+  - Subir el archivo .json descargado de Firebase.
+  - Esperar 5-10 minutos a que Expo propague la credencial.
+
+1.3 app.json:
+  - Asegurar que el package coincida con Firebase y tener los permisos:
+    "android": {
+      "package": "com.rickso100tesxa.DeliverySobreRuedas",
+      "googleServicesFile": "./google-services.json",
+      "permissions": ["POST_NOTIFICATIONS", "VIBRATE"]
+    }
+  - Configurar el sonido personalizado (solo minúsculas, números y guiones bajos):
+    ["expo-notifications", { "sounds": ["./assets/sounds/notificacion.mp3"] }]
+
+--------------------------------------------------------------------------------
+2. BASE DE DATOS Y COLAS (LARAVEL)
+--------------------------------------------------------------------------------
+2.1 Columnas en la tabla de usuarios:
+  ALTER TABLE tbl_user
+  ADD COLUMN expo_push_token VARCHAR(255) NULL AFTER email,
+  ADD COLUMN push_token_updated_at TIMESTAMP NULL AFTER expo_push_token;
+
+2.2 Colas (Jobs):
+  - Ejecutar: php artisan queue:table
+  - Ejecutar: php artisan migrate --force
+  - IMPORTANTE: Configurar QUEUE_CONNECTION=sync en el .env para pruebas,
+    o configurar un Worker (Supervisor) si se usa "database".
+
+--------------------------------------------------------------------------------
+3. ARQUITECTURA BACKEND (LARAVEL)
+--------------------------------------------------------------------------------
+3.1 Modelo User:
+  - Agregar 'expo_push_token' y 'push_token_updated_at' en #[Fillable].
+  - Agregar cast: 'push_token_updated_at' => 'datetime'.
+
+3.2 Servicio PushNotificationService (app/Services/):
+  - Método sendToUser($user, $title, $body, $data).
+  - Método sendToUsers($users, $title, $body, $data).
+  - Envía petición POST a: https://exp.host/--/api/v2/push/send
+  - Limpia tokens inválidos si Expo responde "DeviceNotRegistered".
+
+3.3 Controlador de Autenticación (loginController):
+  - savePushToken(): Guarda el token y la fecha actual.
+  - deletePushToken(): Limpia el token en el logout.
+
+--------------------------------------------------------------------------------
+4. EVENTOS Y LISTENERS (EVITANDO EL BUG DEL SILENCIO)
+--------------------------------------------------------------------------------
+🚨 REGLA DE ORO: NUNCA pongas "implements ShouldQueue" o la propiedad
+"public string $queue" en los listeners de notificaciones si usas QUEUE_CONNECTION=sync.
+Si lo haces, Laravel ignorará el listener silenciosamente.
+
+4.1 Comunidad (PostCreated, CommentCreated):
+  - Listener: NotificarNuevaPublicacion
+    * Título: Delivery Sobre Ruedas
+    * Body: "📢 Nueva publicación\n[Usuario]: [Texto]"
+    * Destino: Todos los usuarios del grupo (excepto el autor).
+  - Listener: NotificarNuevoComentario
+    * Título: Delivery Sobre Ruedas
+    * Body: "💬 Nuevo comentario\n[Usuario] comentó tu publicación"
+    * Destino: Autor de la publicación.
+
+4.2 Préstamos (PrestamoSolicitado, PrestamoActualizado):
+  - Listener: NotificarPrestamoSolicitado
+    * Destino: Usuarios con rol 3 (super admin) o 5 (Asesor).
+    * Título: Delivery Sobre Ruedas
+    * Body: "🔔 Nueva solicitud de préstamo de [Usuario] por $[Monto]"
+    * Screen: 'PanelAsesor'
+  
+  - Listener: NotificarPrestamoActualizado
+    * Destino: Dueño del préstamo (Usuario).
+    * Título: Delivery Sobre Ruedas
+    * Body (Estado 2): "✅ ¡Buenas noticias! Tu préstamo ha sido APROBADO."
+    * Body (Estado 4): "🎉 ¡Felicidades! Has liquidado tu préstamo."
+    * Body (Estado 5): "❌ Tu solicitud ha sido rechazada. Motivo: [...]"
+    * Screen: 'PrestamoActivo', 'PrestamoPagado', 'PrestamoRechazado'.
+
+4.3 Disparar Eventos en Controladores:
+  - En publicacionController@store y commentController@store:
+    event(new PostCreated($post));
+    broadcast(new PostCreated($post))->toOthers(); // (Opcional para WebSockets)
+  - En prestamoController@generar_solicitud:
+    event(new PrestamoSolicitado($prestamo));
+  - En adminController@aprobar_prestamo:
+    event(new PrestamoActualizado($prestamo, $estadoAnterior, $nuevoEstado));
+
+--------------------------------------------------------------------------------
+5. FRONTEND (REACT NATIVE / EXPO)
+--------------------------------------------------------------------------------
+5.1 pushNotifications.ts:
+  - configurarHandlerNotificaciones(): Muestra banners en foreground.
+  - crearCanalAndroid(): Importancia MAX y sonido "notificacion".
+  - registrarYEnviarToken(): Envía el token al backend y guarda en AsyncStorage.
+  - renovarTokenSiEsNecesario(): Re-registra cada 24h usando AsyncStorage.
+  - obtenerNotificacionQueAbrioLaApp(): Para Cold Start (app cerrada).
+
+5.2 pushNavigation.ts (Enrutamiento):
+  - Escucha data.screen enviado desde Laravel.
+  - "Comunidad" -> router.push("/comunidad")
+  - "PanelAsesor" -> router.push("/asesor/panel")
+  - "PrestamoActivo", "PrestamoPagado", "PrestamoRechazado" -> router.push("/prestamos")
+  - Default -> router.push("/home")
+
+5.3 app/_layout.tsx:
+  - Llama configurarHandlerNotificaciones() ANTES de montar el Stack.
+  - useEffect para escuchar notificaciones en foreground y taps.
+  - useEffect para renovar el token si es necesario.
+  - useEffect para verificar si la app se abrió por una notificación (Cold Start).
+
+5.4 AuthService.ts:
+  - En login(): Llama a registrarYEnviarToken() después de guardar credenciales.
+  - En logout(): Llama a eliminarTokenEnBackend() y limpia AsyncStorage.
+
+--------------------------------------------------------------------------------
+6. SOLUCIÓN DE ERRORES COMUNES
+--------------------------------------------------------------------------------
+Error 1: "ExpoPushToken[...] is not valid" o "InvalidCredentials"
+  - Solución: No se subió la clave FCM V1 correcta a Expo, o se subió
+    en la sección de EAS Submit en lugar de FCM V1.
+
+Error 2: El backend responde "ok" pero no llega la notificación al celular.
+  - Solución: Desinstalar la app del celular y volver a instalarla.
+    (El canal de Android solo se crea en la primera instalación y si se
+    modificó el sonido, no se actualiza solo).
+
+Error 3: "Target class [App\Listeners\PushNotificationService] does not exist"
+  - Solución: Falta el use App\Services\PushNotificationService; en el Listener.
+
+Error 4: "Unauthenticated" al abrir una notificación de Asesor.
+  - Solución: El celular que abrió la notificación tiene una sesión de Usuario
+    normal. Los Asesores deben iniciar sesión con su cuenta para ver el panel.
+
+Error 5: INSTALL_FAILED_INSUFFICIENT_STORAGE (Emulador).
+  - Solución: Device Manager > Wipe Data. O aumentar Internal Storage a 8GB.
+
+Error 6: [pusher] Error 1006 (WebSockets Reverb).
+  - Solución: En echo.tsx, si el servidor Reverb no tiene TLS:
+    forceTLS: false, enabledTransports: ["ws"].
+
+--------------------------------------------------------------------------------
+7. CHECKLIST FINAL PARA PRODUCCIÓN
+--------------------------------------------------------------------------------
+[ ] Las credenciales FCM V1 están en Expo.
+[ ] El sonido notificacion.mp3 está en app.json y en la carpeta assets.
+[ ] El archivo google-services.json está en la raíz.
+[ ] QUEUE_CONNECTION está configurado (sync o worker corriendo).
+[ ] Los listeners NO tienen ShouldQueue ni $queue.
+[ ] Se ejecutó php artisan optimize:clear.
+[ ] Se ejecutó npx expo prebuild --platform android --clean.
+[ ] Los dispositivos físicos tienen la app recién instalada.
+[ ] Los usuarios han aceptado los permisos de notificación.
+[ ] Los Tokens están guardados en la tabla tbl_user.
+
+================================================================================
+FIN DE LA DOCUMENTACIÓN
+================================================================================

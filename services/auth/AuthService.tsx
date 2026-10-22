@@ -1,27 +1,23 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
+import { API_CONFIG } from "../../config/ApiConfig";
 import { api, invalidateTokenCache } from "../conector/api";
-import { registrarYEnviarToken } from "../notifications/pushNotifications";
+import {
+  limpiarMarcaRegistro,
+  procesarEliminacionPendiente,
+  registrarYEnviarToken,
+} from "../notifications/pushNotifications";
 
-const Storage = {
-  setItem: async (key: string, value: string) => {
-    try {
-      await SecureStore.setItemAsync(key, value);
-    } catch (error) {}
-  },
-  getItem: async (key: string) => {
-    try {
-      return await SecureStore.getItemAsync(key);
-    } catch (error) {
-      return null;
-    }
-  },
-  removeItem: async (key: string) => {
-    try {
-      await SecureStore.deleteItemAsync(key);
-    } catch (error) {}
-  },
-};
+const TOKEN_KEY = "userToken";
+const USER_KEY = "userData";
+const EXP_KEY = "tokenExpiry";
+
+const KEY_PENDING_REMOVAL = "@push_pending_removal";
+const KEY_LAST_TOKEN = "@push_last_token";
+
+const saveToken = (token: string) => SecureStore.setItemAsync(TOKEN_KEY, token);
+const getTokenRaw = () => SecureStore.getItemAsync(TOKEN_KEY).catch(() => null);
+const delToken = () => SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => {});
 
 export interface LoginCredentials {
   email: string;
@@ -50,6 +46,7 @@ export interface LoginResponse {
     rol_id?: number;
     avatar_url?: string | null;
     portada_url?: string | null;
+    grupo_nombre?: string;
   };
 }
 
@@ -158,35 +155,31 @@ function subirConXHR<T>(
 }
 
 export const authService = {
-  // ============================================================
   // LOGIN
-  // ============================================================
   login: async (credentials: LoginCredentials): Promise<LoginResponse> => {
-    try {
-      const response = await api.post<LoginResponse>("/login", credentials);
+    const response = await api.post<LoginResponse>("/login", credentials);
 
-      if (response.data.res === true && response.data.token) {
-        await Storage.setItem("userToken", response.data.token);
-        // ✅ Invalidar cache del token para que el próximo request lo lea fresco
-        invalidateTokenCache();
-        await Storage.setItem("userData", JSON.stringify(response.data.user));
-        await Storage.setItem("tokenExpiry", response.data.expired_at);
+    if (response.data.res === true && response.data.token) {
+      await saveToken(response.data.token);
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(response.data.user));
+      await AsyncStorage.setItem(EXP_KEY, response.data.expired_at);
 
-        // Registrar push token DESPUÉS de guardar credenciales
-        registrarYEnviarToken().catch((e) => {
-          console.log("[authService.login] push token error:", e?.message);
-        });
-      }
+      invalidateTokenCache();
 
-      return response.data;
-    } catch (error) {
-      throw error;
+      await procesarEliminacionPendiente().catch((e: any) => {
+        console.log("[authService.login] pending removal error:", e?.message);
+      });
+
+      await limpiarMarcaRegistro();
+      registrarYEnviarToken().catch((e: any) => {
+        console.log("[authService.login] push token error:", e?.message);
+      });
     }
+
+    return response.data;
   },
 
-  // ============================================================
   // REGISTRO ADMIN
-  // ============================================================
   registerAgrupacion: async (
     data: RegisterAgrupacionData | FormData,
   ): Promise<RegisterAgrupacionResponse> => {
@@ -218,9 +211,7 @@ export const authService = {
     }
   },
 
-  // ============================================================
   // REGISTRO ASOCIADO
-  // ============================================================
   registerAsociado: async (
     data: RegisterAsociadoData | FormData,
   ): Promise<RegisterAsociadoResponse> => {
@@ -251,9 +242,7 @@ export const authService = {
     }
   },
 
-  // ============================================================
   // RECUPERAR CONTRASEÑA (público, sin token)
-  // ============================================================
   forgotPassword: async (
     identifier: string,
   ): Promise<ForgotPasswordResponse> => {
@@ -269,9 +258,7 @@ export const authService = {
     }
   },
 
-  // ============================================================
   // CAMBIAR CONTRASEÑA (autenticado)
-  // ============================================================
   changePassword: async (
     passwordActual: string,
     passwordNueva: string,
@@ -293,48 +280,117 @@ export const authService = {
     }
   },
 
-  // ============================================================
   // LOGOUT
-  // ============================================================
+  // LOGOUT
   logout: async (): Promise<void> => {
+    console.log("[DEBUG LOGOUT] ========== INICIO LOGOUT ==========");
+
+    // 1. Leer AMBOS tokens INMEDIATAMENTE (antes de que algo los borre)
+    let tokenExpo: string | null = null;
+    let tokenJWT: string | null = null;
+
     try {
-      await Storage.removeItem("userToken");
-      await Storage.removeItem("userData");
-      await Storage.removeItem("tokenExpiry");
-      await AsyncStorage.removeItem("perfil_data");
-      // ✅ Limpiar cache del token en memoria
-      invalidateTokenCache();
-    } catch (error) {
-      try {
-        await Storage.removeItem("userToken");
-        await Storage.removeItem("userData");
-        await Storage.removeItem("tokenExpiry");
-        invalidateTokenCache();
-      } catch (cleanupError) {}
+      tokenExpo = await AsyncStorage.getItem(KEY_LAST_TOKEN);
+      tokenJWT = await SecureStore.getItemAsync(TOKEN_KEY);
+
+      console.log(
+        "[DEBUG LOGOUT] tokenExpo:",
+        tokenExpo ? "✅ Encontrado" : "❌ NULL",
+      );
+      console.log(
+        "[DEBUG LOGOUT] tokenJWT:",
+        tokenJWT ? "✅ Encontrado" : "❌ NULL",
+      );
+    } catch (e) {
+      console.log("[DEBUG LOGOUT] Error leyendo tokens:", e);
     }
+
+    // 2. Enviar al backend ANTES de borrar nada localmente
+    if (tokenExpo && tokenJWT) {
+      try {
+        console.log(
+          "[DEBUG LOGOUT] Enviando orden al backend para borrar token...",
+        );
+
+        const response = await fetch(
+          `${API_CONFIG.baseURL}/user/push-token/remove`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              Authorization: `Bearer ${tokenJWT}`,
+            },
+            body: JSON.stringify({ expo_push_token: tokenExpo }),
+          },
+        );
+
+        const data = await response.json();
+        console.log(
+          "[DEBUG LOGOUT] ✅ Backend confirmó:",
+          response.status,
+          data,
+        );
+      } catch (e: any) {
+        console.log(
+          "[DEBUG LOGOUT] ❌ Error de red al borrar token:",
+          e?.message,
+        );
+      }
+    } else {
+      console.log(
+        "[DEBUG LOGOUT] ⚠️ No se pudo avisar al backend porque faltó un token.",
+      );
+    }
+
+    // 3. Cancelar notificaciones locales pendientes en el teléfono
+    try {
+      const Notifications = await import("expo-notifications");
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      await Notifications.dismissAllNotificationsAsync();
+    } catch (e) {}
+
+    // 4. Limpiar toda la sesión del teléfono (esto se hace AL FINAL)
+    await limpiarMarcaRegistro();
+    await delToken();
+    await AsyncStorage.multiRemove([
+      USER_KEY,
+      EXP_KEY,
+      "perfil_data",
+      KEY_PENDING_REMOVAL,
+    ]).catch(() => {});
+    invalidateTokenCache();
+
+    console.log("[DEBUG LOGOUT] ========== FIN LOGOUT ==========");
   },
 
-  // ============================================================
   // HELPERS
-  // ============================================================
   getToken: async (): Promise<string | null> => {
-    return await Storage.getItem("userToken");
+    return await getTokenRaw();
   },
 
   getUserData: async (): Promise<LoginResponse["user"] | null> => {
     try {
-      const userData = await Storage.getItem("userData");
-      return userData ? JSON.parse(userData) : null;
-    } catch (error) {
+      const raw = await AsyncStorage.getItem(USER_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  getTokenExpiry: async (): Promise<string | null> => {
+    try {
+      return await AsyncStorage.getItem(EXP_KEY);
+    } catch {
       return null;
     }
   },
 
   isAuthenticated: async (): Promise<boolean> => {
     try {
-      const token = await Storage.getItem("userToken");
+      const token = await getTokenRaw();
       return !!token;
-    } catch (error) {
+    } catch {
       return false;
     }
   },

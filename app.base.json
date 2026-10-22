@@ -12,6 +12,7 @@
       "bundleIdentifier": "com.rickso100tesxa.DeliverySobreRuedas",
       "bitcode": false,
       "infoPlist": {
+        "UIBackgroundModes": ["location", "audio", "remote-notification"],
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "Permitir a $(PRODUCT_NAME) usar tu ubicación para seguimiento en tiempo real.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Permitir a $(PRODUCT_NAME) usar tu ubicación para seguimiento en tiempo real.",
@@ -30,6 +31,13 @@
       "package": "com.rickso100tesxa.DeliverySobreRuedas",
       "googleServicesFile": "./google-services.json",
       "permissions": [
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "FOREGROUND_SERVICE_MICROPHONE",
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS",
+        "POST_NOTIFICATIONS",
+        "WAKE_LOCK",
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.CAMERA",
         "android.permission.INTERNET",
@@ -64,7 +72,7 @@
         {
           "image": "./assets/images/splash.png",
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#8B0000"
         }
       ],
       "@livekit/react-native-expo-plugin",
@@ -98,7 +106,12 @@
       "expo-asset",
       "expo-build-properties",
       "expo-video",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "sounds": ["./assets/sounds/notificacion.mp3"]
+        }
+      ],
       "react-native-compressor"
     ],
     "experiments": {

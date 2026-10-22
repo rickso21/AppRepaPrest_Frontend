@@ -1,4 +1,6 @@
 import { authService } from "@/services/auth/AuthService";
+import { getRouteByRole } from "@/services/auth/roleRouting";
+import { SoundService } from "@/services/home/SoundService";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -7,7 +9,6 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
-  Dimensions,
   Image,
   ImageBackground,
   KeyboardAvoidingView,
@@ -21,7 +22,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const { height } = Dimensions.get("window");
 const backgroundImage = require("../assets/images/photo-1519501025264-65ba15a82390.jpg");
 
 export default function LoginScreen(): JSX.Element {
@@ -36,6 +36,14 @@ export default function LoginScreen(): JSX.Element {
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(30)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
+
+  // ✅ Precargar el sonido de bienvenida al montar la pantalla
+  //    (así cuando el login sea exitoso, ya está listo)
+  useEffect(() => {
+    SoundService.preloadBienvenida().catch((e) => {
+      console.log("[LoginScreen] preload bienvenida error:", e?.message);
+    });
+  }, []);
 
   useEffect(() => {
     Animated.parallel([
@@ -85,51 +93,15 @@ export default function LoginScreen(): JSX.Element {
         password: password.trim(),
       });
 
-      const rol = Number(response.user.rol_id);
-
       if (response.res === true && response.token) {
-        /*
-        Alert.alert(
-          "Gracias por elegirnos",
-          "¡Delivery Sobre Ruedas! está contigo a las 24hrs",
-        );
+        // 🎵 Sonido de bienvenida (no bloquea la navegación)
+        SoundService.playBienvenida().catch((e) => {
+          console.log("[LoginScreen] welcome sound error:", e?.message);
+        });
 
-        */
-        if (rol === 3 || rol === 5) {
-          /*
-          Alert.alert("Bienvenido Asesor", "Panel de gestión de préstamos");
-*/
-          router.replace({
-            pathname: "/asesor/panel",
-            params: {
-              userId: String(response.user.id),
-              nombre: response.user.nombre,
-            },
-          });
-          return;
-        }
-
-        if (rol === 4) {
-          router.replace({
-            pathname: "/panel",
-            params: {
-              userId: String(response.user.id),
-              nombre: response.user.nombre,
-            },
-          });
-        } else {
-          router.replace({
-            pathname: "/home",
-            params: {
-              userId: String(response.user.id),
-              nombre: response.user.nombre,
-              apellidoPaterno: response.user.apellido_p ?? "",
-              apellidoMaterno: response.user.apellido_m ?? "",
-              email: response.user.email,
-              telefono: response.user.telefono ?? "",
-            },
-          });
-        }
+        // 🎯 Único punto de decisión de ruta según rol
+        const target = getRouteByRole(response.user);
+        router.replace(target);
       } else {
         Alert.alert("Error", response.msg || "Datos del usuario incorrectos");
       }
@@ -393,8 +365,6 @@ const styles = StyleSheet.create({
   container: {
     width: "100%",
     maxWidth: 500,
-    // ❌ quitado flex: 1 y justifyContent: "space-between"
-    // ✅ ahora el contenido fluye naturalmente
   },
 
   backButton: {
@@ -450,7 +420,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  //FORMULARIO (con espaciado correcto)
   formContainer: {
     width: "100%",
     backgroundColor: "#ffffff",

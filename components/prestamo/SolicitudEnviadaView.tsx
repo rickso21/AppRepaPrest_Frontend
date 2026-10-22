@@ -47,10 +47,11 @@ export default function SolicitudEnviadaView({
   // 🔗 REF ESTABLE PARA onRefresh
   const onRefreshRef = useRef(onRefresh);
   useEffect(() => {
+    /*
     console.log(
       "[SolicitudEnviada] 🔗 onRefresh actualizado, es función?:",
       typeof onRefresh,
-    );
+    );*/
     onRefreshRef.current = onRefresh;
   }, [onRefresh]);
 
@@ -62,10 +63,10 @@ export default function SolicitudEnviadaView({
 
   // REFRESH INMEDIATO AL MONTAR
   useEffect(() => {
-    console.log("[SolicitudEnviada] 🚀 MONTADO, refresh inicial");
+    //.log("[SolicitudEnviada] 🚀 MONTADO, refresh inicial");
 
     if (!onRefreshRef.current) {
-      console.log("[SolicitudEnviada] ⚠️ onRefresh es undefined en montaje");
+      //.log("[SolicitudEnviada] ⚠️ onRefresh es undefined en montaje");
       return;
     }
 
@@ -74,7 +75,7 @@ export default function SolicitudEnviadaView({
     );
 
     return () => {
-      console.log("[SolicitudEnviada] 💀 DESMONTADO");
+      //.log("[SolicitudEnviada] 💀 DESMONTADO");
     };
   }, []);
 
@@ -115,42 +116,46 @@ export default function SolicitudEnviadaView({
 
   // 🔄 POLLING CADA 15s
   useEffect(() => {
+    /*
     console.log(
       "[SolicitudEnviada] 🕐 POLLING INICIADO, intervalo:",
       POLLING_INTERVAL_MS,
     );
+    */
 
     const interval = setInterval(async () => {
       if (refrescandoRef.current) {
-        console.log("[SolicitudEnviada] ⏸️ refresh en curso, se salta");
+        //.log("[SolicitudEnviada] ⏸️ refresh en curso, se salta");
         return;
       }
 
-      // 👇 Si no hay onRefresh (transición activa), no hagas nada
       if (!onRefreshRef.current) {
+        /*
         console.log(
           "[SolicitudEnviada] ⏸️ onRefresh desactivado (transición), se salta",
         );
+        */
         return;
       }
 
       try {
-        console.log("[SolicitudEnviada] 📡 llamando onRefresh...");
+        //.log("[SolicitudEnviada] 📡 llamando onRefresh...");
         await Promise.resolve(onRefreshRef.current({ silencioso: true }));
-        console.log("[SolicitudEnviada] ✅ onRefresh completado");
+        // console.log("[SolicitudEnviada] ✅ onRefresh completado");
       } catch (e) {
-        console.log("[SolicitudEnviada] ❌ error en polling:", e);
+        //.log("[SolicitudEnviada] ❌ error en polling:", e);
       }
     }, POLLING_INTERVAL_MS);
 
     return () => {
-      console.log("[SolicitudEnviada] 🛑 POLLING DETENIDO");
+      //.log("[SolicitudEnviada] 🛑 POLLING DETENIDO");
       clearInterval(interval);
     };
   }, []);
 
   // 🎯 DETECTAR CAMBIO DE ESTADO
   useEffect(() => {
+    /*
     console.log(
       "[SolicitudEnviada] 🔔 estadoActual cambió a:",
       estadoActual,
@@ -158,6 +163,7 @@ export default function SolicitudEnviadaView({
       estadoAnteriorRef.current,
       ")",
     );
+    */
 
     const anterior = estadoAnteriorRef.current;
 

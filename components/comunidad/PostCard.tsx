@@ -1,7 +1,7 @@
 // components/comunidad/PostCard.tsx
 import { Ionicons } from "@expo/vector-icons";
 import { useEvent } from "expo";
-import { createAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { memo, useEffect, useRef, useState } from "react";
 import {
@@ -270,17 +270,9 @@ const PostVideo = memo(function PostVideo({
 // AudioPlayer (expo-audio)
 
 function AudioPlayer({ uri }: { uri: string }) {
-  const player = useRef(createAudioPlayer({ uri })).current;
+  // Agregar downloadFirst, forzar la descarga del audio antes de reproducir
+  const player = useAudioPlayer({ uri }, { downloadFirst: true });
   const status = useAudioPlayerStatus(player);
-
-  useEffect(() => {
-    return () => {
-      try {
-        player.remove();
-        player.release();
-      } catch {}
-    };
-  }, [player]);
 
   const playing = status.playing;
   const position = status.currentTime ?? 0;

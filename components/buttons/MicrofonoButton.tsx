@@ -1,6 +1,8 @@
+// components/buttons/MicrofonoButton.tsx — ÚNICO responsable del micrófono (push-to-talk).
 import { Ionicons } from "@expo/vector-icons";
-import { AudioSession, useRoomContext } from "@livekit/react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useRoomContext } from "@livekit/react-native";
+import { ConnectionState, RoomEvent } from "livekit-client";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 
 type Props = {
@@ -19,46 +21,49 @@ export default function MicrofonoButton({
   const [microfonoActivo, setMicrofonoActivo] = useState(false);
   const room = useRoomContext();
 
-  // Al montar, asegurar que el micrófono arranca silenciado
-  useEffect(() => {
-    if (room.state === "connected") {
-      room.localParticipant.setMicrophoneEnabled(false).catch(() => {});
-    }
-  }, [room]);
+  // Cola: las operaciones sobre el micrófono se ejecutan EN ORDEN (evita la carrera press/release)
+  const cola = useRef<Promise<unknown>>(Promise.resolve());
+  const encolar = useCallback((fn: () => Promise<unknown>) => {
+    cola.current = cola.current
+      .then(fn)
+      .catch((e) => console.warn("[Mic]", e?.message ?? e));
+    return cola.current;
+  }, []);
 
-  const iniciar = useCallback(async () => {
+  // Precalentamiento: publica la pista una vez (tarda segundos) y la deja muteada.
+  // Así el primer "hablar" es instantáneo.
+  useEffect(() => {
+    const warm = () =>
+      encolar(async () => {
+        await room.localParticipant.setMicrophoneEnabled(true);
+        await room.localParticipant.setMicrophoneEnabled(false);
+      });
+    if (room.state === ConnectionState.Connected) warm();
+    room.on(RoomEvent.Connected, warm);
+    return () => {
+      room.off(RoomEvent.Connected, warm);
+    };
+  }, [room, encolar]);
+
+  const iniciar = useCallback(() => {
     if (disabled) {
       if (onBlockedPress) onBlockedPress();
       else Alert.alert("Error", blockedMessage);
       return;
     }
+    if (room.state !== ConnectionState.Connected) return; // aún no conecta: no hacer nada
 
-    if (room.state !== "connected") {
-      console.warn("[Mic] Room no conectada, esperando...");
-      return;
-    }
+    setMicrofonoActivo(true); // respuesta visual inmediata
+    onChange?.(true);
+    encolar(() => room.localParticipant.setMicrophoneEnabled(true));
+  }, [disabled, room, onChange, onBlockedPress, blockedMessage, encolar]);
 
-    try {
-      // Asegurar que la sesión de audio esté activa
-      await AudioSession.startAudioSession();
-      await room.localParticipant.setMicrophoneEnabled(true);
-      setMicrofonoActivo(true);
-      onChange?.(true);
-    } catch (err) {
-      console.error("[Mic] Error al activar micrófono:", err);
-      Alert.alert("Error", "No se pudo activar el micrófono");
-    }
-  }, [disabled, room, onChange, onBlockedPress, blockedMessage]);
-
-  const detener = useCallback(async () => {
-    try {
-      await room.localParticipant.setMicrophoneEnabled(false);
-    } catch (err) {
-      console.error("[Mic] Error al desactivar micrófono:", err);
-    }
+  const detener = useCallback(() => {
     setMicrofonoActivo(false);
     onChange?.(false);
-  }, [room, onChange]);
+    if (room.state !== ConnectionState.Connected) return;
+    encolar(() => room.localParticipant.setMicrophoneEnabled(false));
+  }, [room, onChange, encolar]);
 
   return (
     <Pressable

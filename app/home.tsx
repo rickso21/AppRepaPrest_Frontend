@@ -1,14 +1,13 @@
-// app/(tabs)/index.tsx  (o donde tengas HomeTabs)
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { createBottomTabNavigator } from "expo-router/js-tabs";
 import * as SecureStore from "expo-secure-store";
 import { useCallback, useRef, useState } from "react";
-import { Alert, Platform, StyleSheet, View } from "react-native";
+import { Alert, Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // MONITOREO
+import { authService } from "@/services/auth/AuthService";
 import Comunidad from "./comunidad";
 import HomeScreen from "./homeScreen";
 import Prestamos from "./prestamos";
@@ -26,8 +25,8 @@ type Props = {
       apellidoMaterno?: string;
       email?: string;
       telefono?: string;
-      avatarUrl?: string | null; // ← nuevo
-      portadaUrl?: string | null; // ← nuevo
+      avatarUrl?: string | null;
+      portadaUrl?: string | null;
     };
   };
 };
@@ -37,12 +36,7 @@ export type HomeTabParamList = {
     userId: string;
     userName: string;
     nombre?: string;
-    apellidoPaterno?: string;
-    apellidoMaterno?: string;
-    email?: string;
-    telefono?: string;
-    avatarUrl?: string | null; // ← nuevo
-    portadaUrl?: string | null; // ← nuevo
+    avatarUrl?: string | null;
   };
   Prestamos: {
     userId: string;
@@ -55,6 +49,7 @@ export type HomeTabParamList = {
     userName: string;
     nombre?: string;
     avatarUrl?: string | null;
+    postId?: string;
   };
   Salir: undefined;
 };
@@ -73,17 +68,6 @@ const Storage = {
       return null;
     }
   },
-  deleteItem: async (key: string): Promise<void> => {
-    try {
-      if (Platform.OS === "web") {
-        localStorage.removeItem(key);
-        return;
-      }
-      await SecureStore.deleteItemAsync(key);
-    } catch {
-      /* ignorar */
-    }
-  },
 };
 
 const SalirPlaceholder = () => <View />;
@@ -91,15 +75,19 @@ const SalirPlaceholder = () => <View />;
 // ============================================================
 // COMPONENTE PRINCIPAL
 // ============================================================
-export default function HomeTabs({ route }: Props) {
+export default function HomeScreenTabs() {
   const insets = useSafeAreaInsets();
-  const params = route?.params ?? {};
+
+  // ✅ 1. Leemos los parámetros que vienen de la notificación
+  const localParams = useLocalSearchParams<{ tab?: string; postId?: string }>();
+  const requestedTab = localParams?.tab;
+  const requestedPostId = localParams?.postId;
 
   const [userData, setUserData] = useState<Record<string, any> | null>(null);
   const [ready, setReady] = useState(false);
   const isNavigating = useRef(false);
 
-  // Recarga userData cada vez que HomeTabs gana foco
+  // Recarga userData cada vez que la pantalla gana foco
   useFocusEffect(
     useCallback(() => {
       let active = true;
@@ -107,12 +95,8 @@ export default function HomeTabs({ route }: Props) {
         if (!active) return;
         if (raw) {
           try {
-            const parsed = JSON.parse(raw);
-            console.log("[HomeTabs] userData desde SecureStore:", parsed);
-            setUserData(parsed);
-          } catch {
-            /* ignorar */
-          }
+            setUserData(JSON.parse(raw));
+          } catch {}
         }
         setReady(true);
       });
@@ -122,36 +106,11 @@ export default function HomeTabs({ route }: Props) {
     }, []),
   );
 
-  // ============================================================
-  // DATOS DERIVADOS
-  // ============================================================
-  const userId = String(userData?.id ?? "") || params?.userId || "";
-  const nombre = userData?.nombre || params?.nombre || "";
+  const userId = String(userData?.id ?? "") || "";
+  const nombre = userData?.nombre || "";
+  const userName = nombre || "Usuario";
+  const avatarUrl = userData?.avatar_url ?? null;
 
-  const apellidoPaterno =
-    userData?.apellido_p ||
-    userData?.apellidoPaterno ||
-    params?.apellidoPaterno ||
-    "";
-
-  const apellidoMaterno =
-    userData?.apellido_m ||
-    userData?.apellidoMaterno ||
-    params?.apellidoMaterno ||
-    "";
-
-  const email = userData?.email || params?.email || "";
-  const telefono = userData?.telefono || params?.telefono || "";
-
-  const userName = params?.userName || nombre || "Usuario";
-
-  const avatarUrl = userData?.avatar_url ?? params?.avatarUrl ?? null;
-
-  const portadaUrl = userData?.portada_url ?? params?.portadaUrl ?? null;
-
-  // ============================================================
-  // CERRAR SESIÓN
-  // ============================================================
   const handleLogout = useCallback(() => {
     if (isNavigating.current) return;
     isNavigating.current = true;
@@ -172,13 +131,8 @@ export default function HomeTabs({ route }: Props) {
           style: "destructive",
           onPress: async () => {
             try {
-              // Limpiar todo el estado de sesión
-              await Storage.deleteItem("userToken");
-              await Storage.deleteItem("userData");
-              await Storage.deleteItem("tokenExpiry");
-              await AsyncStorage.removeItem("perfil_data");
+              await authService.logout();
             } catch (error) {
-              console.error("[HomeTabs] Error cerrando sesión:", error);
             } finally {
               router.replace("/login");
               isNavigating.current = false;
@@ -186,12 +140,6 @@ export default function HomeTabs({ route }: Props) {
           },
         },
       ],
-      {
-        cancelable: true,
-        onDismiss: () => {
-          isNavigating.current = false;
-        },
-      },
     );
   }, []);
 
@@ -199,75 +147,46 @@ export default function HomeTabs({ route }: Props) {
 
   return (
     <Tab.Navigator
-      key={userId || "anon"}
-      initialRouteName="Home"
-      screenOptions={({ route: tabRoute }) => {
-        const isLogout = tabRoute.name === "Salir";
-
+      // ✅ 2. ESTO ES LA MAGIA:
+      // Al cambiar el "key" (agregando el requestedTab), obligamos a React a destruir
+      // el TabNavigator actual y crear uno nuevo. Al crearlo desde cero, usa el
+      // initialRouteName que le indicamos (ej. "Comunidad").
+      key={`tabs-${requestedTab || "Home"}`}
+      initialRouteName={(requestedTab as any) || "Home"}
+      screenOptions={({ route }) => {
+        const isLogout = route.name === "Salir";
         return {
           headerShown: false,
-          tabBarActiveTintColor: isLogout ? "#940000" : "#940000",
-          tabBarInactiveTintColor: isLogout ? "#940000" : "#6B7280",
+          tabBarActiveTintColor: "#940000",
+          tabBarInactiveTintColor: "#6B7280",
           tabBarStyle: {
             backgroundColor: "#16161F",
             borderTopWidth: 1,
             borderTopColor: "rgba(255,255,255,0.07)",
-            height: Platform.OS === "ios" ? 80 : 60,
-            paddingTop: Platform.OS === "ios" ? 8 : 6,
-            paddingBottom: Platform.OS === "ios" ? 24 : 10,
-            elevation: 16,
-            ...(Platform.OS === "android" && {
-              paddingBottom: 10 + insets.bottom,
-              height: 69 + insets.bottom,
-            }),
-          },
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: "700",
-            letterSpacing: 0.2,
-            marginBottom: Platform.OS === "ios" ? 0 : 2,
+            height: Platform.OS === "ios" ? 80 : 60 + insets.bottom,
+            paddingBottom: Platform.OS === "ios" ? 24 : 10 + insets.bottom,
           },
           tabBarIcon: ({ color, size, focused }) => {
-            let iconName: string;
-
-            if (tabRoute.name === "Home") {
+            let iconName: any = "home-outline";
+            if (route.name === "Home")
               iconName = focused ? "home" : "home-outline";
-            } else if (tabRoute.name === "Prestamos") {
+            else if (route.name === "Prestamos")
               iconName = focused ? "cash" : "cash-outline";
-            } else if (tabRoute.name === "Comunidad") {
+            else if (route.name === "Comunidad")
               iconName = focused ? "people" : "people-outline";
-            } else if (tabRoute.name === "Salir") {
-              iconName = "log-out-outline";
-            } else {
-              iconName = "home-outline";
-            }
-
-            return (
-              <Ionicons name={iconName as any} size={size} color={color} />
-            );
+            else if (route.name === "Salir") iconName = "log-out-outline";
+            return <Ionicons name={iconName} size={size} color={color} />;
           },
         };
       }}
     >
-      {/* MONITOREO */}
       <Tab.Screen
         name="Home"
         component={HomeScreen}
-        initialParams={{
-          userId,
-          userName,
-          nombre,
-          apellidoPaterno,
-          apellidoMaterno,
-          email,
-          telefono,
-          avatarUrl,
-          portadaUrl,
-        }}
+        initialParams={{ userId, userName, nombre, avatarUrl }}
         options={{ tabBarLabel: "Home" }}
       />
 
-      {/* PRÉSTAMOS */}
       <Tab.Screen
         name="Prestamos"
         component={Prestamos}
@@ -275,15 +194,19 @@ export default function HomeTabs({ route }: Props) {
         options={{ tabBarLabel: "Préstamos" }}
       />
 
-      {/* COMUNIDAD */}
       <Tab.Screen
         name="Comunidad"
         component={Comunidad}
-        initialParams={{ userId, userName, nombre, avatarUrl }}
+        initialParams={{
+          userId,
+          userName,
+          nombre,
+          avatarUrl,
+          postId: requestedPostId, // ✅ Pasamos el postId para que abra la publicación exacta
+        }}
         options={{ tabBarLabel: "Comunidad" }}
       />
 
-      {/* SALIR */}
       <Tab.Screen
         name="Salir"
         component={SalirPlaceholder}
@@ -303,26 +226,3 @@ export default function HomeTabs({ route }: Props) {
     </Tab.Navigator>
   );
 }
-
-// ============================================================
-// ESTILOS
-// ============================================================
-const styles = StyleSheet.create({
-  placeholder: {
-    flex: 1,
-    backgroundColor: "#0F0F17",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
-  placeholderTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#fff",
-    letterSpacing: 1,
-  },
-  placeholderText: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.5)",
-  },
-});

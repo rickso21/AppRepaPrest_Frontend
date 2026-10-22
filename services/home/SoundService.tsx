@@ -4,6 +4,7 @@ import { Vibration } from "react-native";
 // VARIABLES GLOBALES
 let alarmaPlayer: AudioPlayer | null = null;
 let confirmacionPlayer: AudioPlayer | null = null;
+let bienvenidaPlayer: AudioPlayer | null = null;
 let alarmaTimeout: ReturnType<typeof setTimeout> | null = null;
 
 // SERVICIO DE SONIDO
@@ -11,13 +12,10 @@ class SoundServiceClass {
   private audioConfigured = false;
   private preloadingAlarma = false;
   private preloadingConfirmacion = false;
+  private preloadingBienvenida = false;
 
   // CONFIGURACIÓN DE AUDIO
 
-  /**
-   * Configura el modo de audio global.
-   * Solo se ejecuta una vez, salvo que se fuerce con `force = true`.
-   */
   async configureAudio(force = false): Promise<void> {
     if (this.audioConfigured && !force) return;
 
@@ -36,10 +34,6 @@ class SoundServiceClass {
 
   // PRECARGA DE SONIDOS
 
-  /**
-   * Precarga el sonido de alarma en memoria.
-   * Es seguro llamarlo varias veces; solo carga una vez.
-   */
   async preloadAlarma(): Promise<void> {
     if (alarmaPlayer || this.preloadingAlarma) return;
 
@@ -48,7 +42,7 @@ class SoundServiceClass {
       await this.configureAudio();
 
       alarmaPlayer = createAudioPlayer(
-        require("../assets/sounds/8footdino_on_scratch-alarm-301729.mp3"),
+        require("../../assets/sounds/8footdino_on_scratch-alarm-301729.mp3"),
       );
       alarmaPlayer.volume = 1.0;
       alarmaPlayer.loop = false;
@@ -60,10 +54,6 @@ class SoundServiceClass {
     }
   }
 
-  /**
-   * Precarga el sonido de confirmación en memoria.
-   * Es seguro llamarlo varias veces; solo carga una vez.
-   */
   async preloadConfirmacion(): Promise<void> {
     if (confirmacionPlayer || this.preloadingConfirmacion) return;
 
@@ -72,7 +62,7 @@ class SoundServiceClass {
       await this.configureAudio();
 
       confirmacionPlayer = createAudioPlayer(
-        require("../assets/sounds/tono_confirmacion.mp3"),
+        require("../../assets/sounds/tono_confirmacion.mp3"),
       );
       confirmacionPlayer.volume = 0.7;
       confirmacionPlayer.loop = false;
@@ -84,38 +74,48 @@ class SoundServiceClass {
     }
   }
 
+  // ✅ NUEVO: precarga del sonido de bienvenida
+  async preloadBienvenida(): Promise<void> {
+    if (bienvenidaPlayer || this.preloadingBienvenida) return;
+
+    this.preloadingBienvenida = true;
+    try {
+      await this.configureAudio();
+
+      bienvenidaPlayer = createAudioPlayer(
+        require("../../assets/sounds/universfield-new-notification-037-485898.mp3"),
+      );
+      bienvenidaPlayer.volume = 0.6;
+      bienvenidaPlayer.loop = false;
+    } catch (error) {
+      console.warn("No se pudo pre-cargar bienvenida:", error);
+      bienvenidaPlayer = null;
+    } finally {
+      this.preloadingBienvenida = false;
+    }
+  }
+
   // REPRODUCCIÓN
 
-  /**
-   * Reproduce la alarma de pánico.
-   * Si no está precargada, la precarga en ese momento.
-   * Si falla el audio, cae a vibración como fallback.
-   */
   async playAlarma(): Promise<void> {
-    // Si no está precargada, precargar ahora
     if (!alarmaPlayer) {
       await this.preloadAlarma();
     }
 
-    // Si aún no hay sonido, fallback: solo vibración
     if (!alarmaPlayer) {
       Vibration.vibrate([500, 200, 500, 200, 500, 200, 1000]);
       return;
     }
 
     try {
-      // Cancelar timeout previo si existe
       if (alarmaTimeout) {
         clearTimeout(alarmaTimeout);
         alarmaTimeout = null;
       }
 
-      // expo-audio NO reinicia automáticamente la posición al terminar
-      // Es necesario seekTo(0) antes de play() para reproducir de nuevo desde el inicio[citation:13]
       alarmaPlayer.seekTo(0);
       alarmaPlayer.play();
 
-      // Detener automáticamente después de 5 segundos
       alarmaTimeout = setTimeout(() => {
         try {
           alarmaPlayer?.pause();
@@ -125,7 +125,6 @@ class SoundServiceClass {
         alarmaTimeout = null;
       }, 5000);
     } catch (error: any) {
-      // Reintento si perdimos foco de audio (Android)
       if (error?.message?.includes("AudioFocusNotAcquiredException")) {
         try {
           await this.configureAudio(true);
@@ -143,11 +142,6 @@ class SoundServiceClass {
     }
   }
 
-  /**
-   * Reproduce el tono de confirmación.
-   * Si no está precargado, lo precarga en ese momento.
-   * Si falla el audio, cae a vibración como fallback.
-   */
   async playConfirmacion(): Promise<void> {
     if (!confirmacionPlayer) {
       await this.preloadConfirmacion();
@@ -159,7 +153,6 @@ class SoundServiceClass {
     }
 
     try {
-      // Mismo caso: seekTo(0) antes de play() para reproducir desde el inicio
       confirmacionPlayer.seekTo(0);
       confirmacionPlayer.play();
     } catch (error) {
@@ -168,12 +161,29 @@ class SoundServiceClass {
     }
   }
 
+  // ✅ NUEVO: reproducir sonido de bienvenida
+  async playBienvenida(): Promise<void> {
+    if (!bienvenidaPlayer) {
+      await this.preloadBienvenida();
+    }
+
+    if (!bienvenidaPlayer) {
+      // Fallback: no molestar con vibración al iniciar sesión
+      // (sería raro vibrar al hacer login, así que solo log)
+      console.log("[SoundService] Bienvenida no disponible (sin audio)");
+      return;
+    }
+
+    try {
+      bienvenidaPlayer.seekTo(0);
+      bienvenidaPlayer.play();
+    } catch (error) {
+      console.error("Error reproduciendo bienvenida:", error);
+    }
+  }
+
   // LIMPIEZA
 
-  /**
-   * Detiene todos los sonidos y vibraciones activos.
-   * No libera los recursos de audio (para eso está `unloadAll`).
-   */
   async stopAll(): Promise<void> {
     try {
       if (alarmaTimeout) {
@@ -195,10 +205,6 @@ class SoundServiceClass {
     }
   }
 
-  /**
-   * Libera todos los recursos de audio.
-   * Llamar al desmontar la app o al cerrar sesión.
-   */
   async unloadAll(): Promise<void> {
     try {
       await this.stopAll();
@@ -219,6 +225,16 @@ class SoundServiceClass {
           /* ignorar */
         }
         confirmacionPlayer = null;
+      }
+
+      // ✅ NUEVO: liberar también bienvenida
+      if (bienvenidaPlayer) {
+        try {
+          bienvenidaPlayer.remove();
+        } catch {
+          /* ignorar */
+        }
+        bienvenidaPlayer = null;
       }
     } catch (error) {
       console.error("Error liberando sonidos:", error);

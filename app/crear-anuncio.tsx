@@ -4,16 +4,16 @@ import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -49,24 +49,56 @@ const PLANES = [
 ];
 
 /**
- * 🔧 FIX #18: agrega https:// si el link no trae esquema ("wa.me/52...",
- * "www.mitienda.com"). Sin esquema, el anuncio se guardaba y luego AdCard
- * no podía abrirlo.
+ * Normaliza un link a URL válida.
+ * Reglas:
+ *  - Puro número → inválido
+ *  - Con esquema → se respeta, pero si es wa.me se valida que tenga dígitos
+ *  - "wa.me/...", "www.x.com", "x.com" → se le antepone https://
+ *  - Texto suelto → inválido
  */
 function normalizarLink(raw: string): string {
   const u = raw.trim();
   if (!u) return "";
-  if (/^[a-z][a-z0-9+.-]*:/i.test(u)) return u;
-  return `https://${u.replace(/^\/+/, "")}`;
+
+  // Puro número (teléfono escrito en el campo Link) → inválido
+  if (/^\+?\d[\d\s\-()]{6,}$/.test(u)) return "";
+
+  // Ya trae esquema
+  if (/^[a-z][a-z0-9+.-]*:/i.test(u)) {
+    if (/^https?:\/\/(wa\.me|api\.whatsapp\.com)/i.test(u)) {
+      const digits = u.replace(/\D+/g, "");
+      if (digits.length < 12) return ""; // 52 + 10 dígitos MX
+    }
+    return u;
+  }
+
+  // Sin esquema → normalizar
+  if (/^(wa\.me|www\.)/i.test(u) || /\.[a-z]{2,}/i.test(u)) {
+    const conEsquema = `https://${u.replace(/^\/+/, "")}`;
+    if (/^https?:\/\/(wa\.me|api\.whatsapp\.com)/i.test(conEsquema)) {
+      const digits = conEsquema.replace(/\D+/g, "");
+      if (digits.length < 12) return "";
+    }
+    return conEsquema;
+  }
+
+  // Texto suelto → inválido
+  return "";
+}
+
+/**
+ * Normaliza un teléfono a solo dígitos (mínimo 10).
+ * Devuelve "" si no es válido.
+ */
+function normalizarTelefono(raw: string): string {
+  const digits = raw.replace(/\D+/g, "");
+  if (digits.length < 10) return "";
+  return digits;
 }
 
 export default function CrearAnuncio() {
   const router = useRouter();
 
-  // 🔧 FIX #18: recuerda el anuncio YA creado (pendiente de pago) y con qué
-  //    contenido. Si el usuario toca "Cancelar" en el aviso de pago y vuelve a
-  //    pulsar "Pagar y publicar", antes se creaba OTRO anuncio pendiente cada vez
-  //    (duplicados huérfanos en la base de datos).
   const anuncioCreadoRef = useRef<{ id: number; firma: string } | null>(null);
 
   const [titulo, setTitulo] = useState("");
@@ -96,7 +128,7 @@ export default function CrearAnuncio() {
 
   const handlePublicar = async () => {
     // ============================================================
-    // VALIDACIONES
+    // 1. VALIDACIONES LOCALES
     // ============================================================
     if (!titulo.trim()) {
       Alert.alert("Atención", "Ingresa un título para tu anuncio.");
@@ -107,39 +139,65 @@ export default function CrearAnuncio() {
       return;
     }
 
-    if (!linkUrl.trim() && !telefono.trim()) {
+    const linkFinal = normalizarLink(linkUrl);
+    const telFinal = normalizarTelefono(telefono);
+
+    // Link escrito pero inválido
+    if (linkUrl.trim() && !linkFinal) {
+      Alert.alert(
+        "Link inválido",
+        "El link debe ser una URL válida (ej. https://wa.me/5215512345678 o https://mitienda.com). Si quieres poner tu teléfono, usa el campo Teléfono.",
+      );
+      return;
+    }
+
+    // Teléfono escrito pero inválido
+    if (telefono.trim() && !telFinal) {
+      Alert.alert(
+        "Teléfono inválido",
+        "Ingresa al menos 10 dígitos (ej. 5512345678).",
+      );
+      return;
+    }
+
+    // Al menos uno debe ser válido
+    if (!linkFinal && !telFinal) {
       Alert.alert(
         "Atención",
-        "Ingresa al menos un link (WhatsApp, web) o un teléfono para que los clientes puedan contactarte.",
+        "Ingresa al menos un link válido o un teléfono para que los clientes puedan contactarte.",
       );
       return;
     }
 
     setEnviando(true);
     try {
-      const linkFinal = normalizarLink(linkUrl);
       const firma = JSON.stringify([
         titulo.trim(),
         descripcion.trim(),
         linkFinal,
-        telefono.trim(),
+        telFinal,
         imagen,
+        planId,
       ]);
 
       let adId: number;
 
       if (anuncioCreadoRef.current?.firma === firma) {
-        // 🔧 Mismo contenido que el anuncio ya creado → solo se reintenta el pago
         adId = anuncioCreadoRef.current.id;
       } else {
         // ============================================================
-        // 1. Crear el anuncio (status_id = 0, pendiente de pago)
+        // 2. CREAR ANUNCIO
         // ============================================================
         const form = new FormData();
         form.append("title", titulo.trim());
         form.append("description", descripcion.trim());
-        form.append("link_url", linkFinal);
-        form.append("phone", telefono.trim());
+
+        // Solo mandar link si es válido
+        if (linkFinal) form.append("link_url", linkFinal);
+
+        // Solo mandar phone si es válido
+        if (telFinal) form.append("phone", telFinal);
+
         form.append("plan_id", String(planId));
         form.append("cta_text", "Ver más");
 
@@ -164,7 +222,6 @@ export default function CrearAnuncio() {
           return;
         }
 
-        // 🔧 antes `createData.ad.id` lanzaba TypeError si `ad` no venía
         const nuevoId = createData?.ad?.id;
         if (!nuevoId) {
           Alert.alert(
@@ -176,19 +233,36 @@ export default function CrearAnuncio() {
         adId = nuevoId;
         anuncioCreadoRef.current = { id: nuevoId, firma };
       }
-      //console.log("[crear-anuncio] Anuncio creado:", adId);
 
       // ============================================================
-      // 2. Generar preferencia de pago (MercadoPago)
+      // 3. GENERAR PREFERENCIA DE PAGO
       // ============================================================
       const { data: payData } = await api.post(`/ads/${adId}/pay`, {
         plan_id: planId,
       });
 
-      //console.log("[crear-anuncio] payData:", payData);
+      // Anuncio ya pagado y activo
+      if (payData?.already_paid) {
+        Alert.alert(
+          "Anuncio activo",
+          payData?.msg ?? "Tu anuncio ya está activo.",
+          [{ text: "OK", onPress: () => router.replace("/panel") }],
+        );
+        return;
+      }
+
+      // Pago pendiente ya existente (no se genera otro init_point)
+      if (payData?.already_pending) {
+        Alert.alert(
+          "Pago pendiente",
+          "Ya existe un pago pendiente para este anuncio. Si no lo completaste, puedes crear uno nuevo cambiando algún dato.",
+          [{ text: "OK" }],
+        );
+        return;
+      }
 
       // ============================================================
-      // 3. Si hay init_point → abrir MercadoPago
+      // 4. ABRIR MERCADOPAGO
       // ============================================================
       if (payData?.res && payData?.init_point) {
         Alert.alert(
@@ -202,7 +276,7 @@ export default function CrearAnuncio() {
                 try {
                   await Linking.openURL(payData.init_point);
                   router.replace("/panel");
-                } catch (err) {
+                } catch {
                   Alert.alert(
                     "Error",
                     "No se pudo abrir MercadoPago. Intenta de nuevo.",
@@ -221,7 +295,6 @@ export default function CrearAnuncio() {
         );
       }
     } catch (e: any) {
-      //console.error("[crear-anuncio] error:", e);
       console.error("[crear-anuncio] response:", e?.response?.data);
 
       const msg =
@@ -257,6 +330,7 @@ export default function CrearAnuncio() {
           value={titulo}
           onChangeText={setTitulo}
           editable={!enviando}
+          maxLength={150}
         />
 
         {/* Descripción */}
@@ -274,22 +348,24 @@ export default function CrearAnuncio() {
 
         {/* Link */}
         <View style={styles.labelRow}>
-          <Text style={styles.label}>Link (WhatsApp, web, etc.)</Text>
+          <Text style={styles.label}>Link (web, redes, etc.)</Text>
           <Text style={styles.labelHint}>Opcional si pones teléfono</Text>
         </View>
         <TextInput
           style={styles.input}
-          placeholder="https://wa.me/5215512345678"
+          placeholder="https://mitienda.com"
           placeholderTextColor="rgba(255,255,255,0.35)"
           value={linkUrl}
           onChangeText={setLinkUrl}
           autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
           editable={!enviando}
         />
 
         {/* Teléfono */}
         <View style={styles.labelRow}>
-          <Text style={styles.label}>Teléfono</Text>
+          <Text style={styles.label}>Teléfono (WhatsApp)</Text>
           <Text style={styles.labelHint}>Opcional si pones link</Text>
         </View>
         <TextInput
@@ -300,6 +376,7 @@ export default function CrearAnuncio() {
           onChangeText={setTelefono}
           keyboardType="phone-pad"
           editable={!enviando}
+          maxLength={15}
         />
 
         {/* Info box */}
@@ -307,7 +384,8 @@ export default function CrearAnuncio() {
           <Ionicons name="information-circle-outline" size={16} color={BRAND} />
           <Text style={styles.infoText}>
             Debes ingresar al menos un link o un teléfono para que los clientes
-            puedan contactarte.
+            puedan contactarte. Si pones tu teléfono, generaremos un enlace de
+            WhatsApp automáticamente.
           </Text>
         </View>
 
@@ -434,9 +512,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 8,
-    backgroundColor: "rgba(255,107,53,0.08)",
+    backgroundColor: "rgba(148,0,0,0.08)",
     borderWidth: 1,
-    borderColor: "rgba(255,107,53,0.3)",
+    borderColor: "rgba(148,0,0,0.3)",
     borderRadius: 10,
     padding: 12,
     marginTop: 12,
@@ -476,7 +554,7 @@ const styles = StyleSheet.create({
   },
   planActive: {
     borderColor: BRAND,
-    backgroundColor: "rgba(255,107,53,0.08)",
+    backgroundColor: "rgba(148,0,0,0.08)",
   },
   planLeft: { flex: 1 },
   planName: { color: "#fff", fontSize: 15, fontWeight: "700" },

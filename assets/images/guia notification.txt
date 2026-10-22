@@ -1,0 +1,180 @@
+================================================================================
+GUÍA DEFINITIVA: IMPLEMENTACIÓN DE NOTIFICACIONES PUSH (EXPO + LARAVEL)
+================================================================================
+Stack: React Native (Expo) + Laravel + Firebase (FCM V1)
+Autor: Asistente AI para DeliverySobreRuedas
+Fecha: Octubre 2026
+================================================================================
+
+--------------------------------------------------------------------------------
+1. CONFIGURACIÓN EN FIREBASE Y EXPO
+--------------------------------------------------------------------------------
+Paso 1.1: En Firebase Console (console.firebase.google.com)
+  - Ir a Configuración del proyecto > Cuentas de servicio.
+  - Clic en "Generar nueva clave privada" y descargar el archivo .json.
+
+Paso 1.2: En Expo (expo.dev)
+  - Ir a Project Settings > Credentials > Android > Tu Package Name.
+  - Buscar la sección "FCM V1 service account key".
+  - Subir el archivo .json descargado de Firebase.
+  - IMPORTANTE: No confundir con "Google Service Account Key for EAS Submit".
+  - Esperar 5-10 minutos a que Expo propague la credencial.
+
+Paso 1.3: Archivo local
+  - Asegurarse de tener el archivo "google-services.json" en la raíz del proyecto Expo.
+  - Verificar que el package_name coincida con app.json y project_id con Firebase.
+
+--------------------------------------------------------------------------------
+2. BASE DE DATOS (MYSQL)
+--------------------------------------------------------------------------------
+Paso 2.1: Verificar si existen las columnas en la tabla 'tbl_user'.
+  Si no existen, ejecutar:
+
+  ALTER TABLE tbl_user
+  ADD COLUMN expo_push_token VARCHAR(255) NULL AFTER email,
+  ADD COLUMN push_token_updated_at TIMESTAMP NULL AFTER expo_push_token;
+
+Paso 2.2: Crear la tabla de colas (jobs) si no existe.
+  php artisan queue:table
+  php artisan migrate --force
+
+--------------------------------------------------------------------------------
+3. BACKEND: MODELOS Y SERVICIOS (LARAVEL)
+--------------------------------------------------------------------------------
+Paso 3.1: Actualizar app/Models/User.php
+  - Agregar 'expo_push_token' y 'push_token_updated_at' al atributo #[Fillable].
+  - Agregar 'push_token_updated_at' => 'datetime' en el método casts().
+
+Paso 3.2: Crear app/Services/PushNotificationService.php
+  Este servicio maneja la comunicación con la API de Expo.
+  - Crea la clase con los métodos: sendToUser(), sendToUsers() y sendToTokens().
+  - Usar Http::post('https://exp.host/--/api/v2/push/send', $messages).
+  - Incluir limpieza de tokens inválidos (DeviceNotRegistered).
+
+Paso 3.3: Actualizar app/Http/Controllers/user/loginController.php
+  - Método savePushToken(): Valida y guarda el token en el usuario.
+    * user->expo_push_token = request->expo_push_token
+    * user->push_token_updated_at = now()
+  - Método deletePushToken(): Limpia el token (usado en logout).
+
+Paso 3.4: Agregar rutas en routes/api.php (dentro del grupo auth:sanctum)
+  Route::post('/user/push-token', [loginController::class, 'savePushToken']);
+  Route::delete('/user/push-token', [loginController::class, 'deletePushToken']);
+
+--------------------------------------------------------------------------------
+4. BACKEND: EVENTOS Y LISTENERS (EL BUG MÁS COMÚN)
+--------------------------------------------------------------------------------
+Paso 4.1: Crear los Listeners
+  - app/Listeners/NotificarNuevaPublicacion.php
+  - app/Listeners/NotificarNuevoComentario.php
+
+  *** REGLA DE ORO ***
+  - ELIMINAR "implements ShouldQueue" de la clase.
+  - ELIMINAR la propiedad "public string $queue = '...'" si existe.
+  - El listener debe ejecutarse de forma síncrona o en la cola por defecto.
+
+Paso 4.2: Registrar en app/Providers/EventServiceProvider.php
+  En el array $listen, agregar:
+  PostCreated::class => [NotificarNuevaPublicacion::class],
+  CommentCreated::class => [NotificarNuevoComentario::class],
+
+Paso 4.3: Corregir los Controladores (¡CRÍTICO!)
+  En publicacionController@store y commentController@store.
+
+  INCORRECTO (No dispara listeners locales):
+  broadcast(new PostCreated($post))->toOthers();
+
+  CORRECTO (Dispara listeners y broadcast):
+  event(new PostCreated($post));
+  broadcast(new PostCreated($post))->toOthers();
+
+Paso 4.4: Limpiar cachés (Obligatorio tras cambios en listeners)
+  php artisan optimize:clear
+  php artisan event:list | grep -i notif (Verificar que NO diga ShouldQueue)
+
+--------------------------------------------------------------------------------
+5. FRONTEND: SERVICIOS (REACT NATIVE / EXPO)
+--------------------------------------------------------------------------------
+Paso 5.1: services/notifications/pushNotifications.ts
+  - Configurar el handler global: Notifications.setNotificationHandler({...})
+  - Crear el canal de Android con el sonido correcto:
+    Notifications.setNotificationChannelAsync("default", { sound: "tu_sonido" })
+  - Función registrarYEnviarToken(): Obtiene el token y hace POST a /user/push-token.
+  - Función renovarTokenSiEsNecesario(): Usa AsyncStorage para no enviar más de 1 vez al día.
+  - Función obtenerNotificacionQueAbrioLaApp(): Para cold start (app cerrada).
+
+Paso 5.2: services/notifications/pushNavigation.ts
+  - Función navegarDesdeNotificacion(data).
+  - Usar router.push() basado en data.screen.
+
+Paso 5.3: app/_layout.tsx
+  - Llamar a configurarHandlerNotificaciones() ANTES que nada.
+  - useEffect para escuchar notificaciones en foreground y al tocar.
+  - useEffect para renovarTokenSiEsNecesario().
+
+Paso 5.4: services/auth/AuthService.ts
+  - En login(): Después de guardar credenciales, llamar a registrarYEnviarToken().
+  - En logout(): Llamar a eliminarTokenEnBackend().
+
+--------------------------------------------------------------------------------
+6. FRONTEND: CONFIGURACIÓN DE SONIDOS Y COMPILACIÓN
+--------------------------------------------------------------------------------
+Paso 6.1: Sonidos personalizados
+  - El archivo de sonido debe llamarse SOLO con minúsculas, números y guiones bajos.
+    Correcto: notificacion.mp3 | Incorrecto: izafi-gold-coin-123.mp3
+  - Colocar en ./assets/sounds/notificacion.mp3
+  - En app.json:
+    ["expo-notifications", { "sounds": ["./assets/sounds/notificacion.mp3"] }]
+
+Paso 6.2: Recompilar la App
+  - Al cambiar credenciales, canales o sonidos, es OBLIGATORIO recompilar:
+    npx expo prebuild --platform android --clean
+    npx expo run:android --device
+  - Desinstalar la app anterior del celular antes de instalar la nueva.
+
+--------------------------------------------------------------------------------
+7. PRUEBAS Y DIAGNÓSTICO
+--------------------------------------------------------------------------------
+Prueba 1 (Backend): Enviar notificación desde Tinker.
+  php artisan tinker
+  $post = App\Models\Post::latest()->first();
+  event(new App\Events\PostCreated($post));
+  - Revisar logs: tail -f storage/logs/laravel.log (Debe decir "[push] Enviado")
+
+Prueba 2 (API Expo): Enviar curl al token.
+  curl -X POST https://exp.host/--/api/v2/push/send -H "Content-Type: application/json" -d '{
+    "to": "ExponentPushToken[TU_TOKEN]",
+    "title": "Test",
+    "body": "Prueba"
+  }'
+  - Si responde status: ok, pero no llega: El problema es el dispositivo o FCM.
+  - Si responde InvalidCredentials: Falta subir la clave FCM V1 en Expo.
+
+Prueba 3 (End-to-End):
+  - Usuario A (Emulador) crea publicación.
+  - Usuario B (Celular físico con app cerrada) debe recibir la push.
+
+--------------------------------------------------------------------------------
+8. PROBLEMAS COMUNES Y SOLUCIONES
+--------------------------------------------------------------------------------
+Error: "Request failed with status code 500" al guardar token.
+  - Solución: Falta la columna push_token_updated_at en la tabla o en el fillable.
+    Ejecutar ALTER TABLE y php artisan optimize:clear.
+
+Error: "Target class [...] does not exist".
+  - Solución: Ejecutar composer dump-autoload.
+
+Error: El listener NO se ejecuta (no hay logs).
+  - Solución 1: El listener tiene "public string $queue" declarado. Eliminarlo.
+  - Solución 2: El controlador usa broadcast()->toOthers() sin event(). Cambiarlo.
+
+Error: INSTALL_FAILED_INSUFFICIENT_STORAGE (Emulador).
+  - Solución: Device Manager > Wipe Data. O aumentar Internal Storage a 8GB.
+
+Error: [pusher] Error 1006 en echo.tsx (WebSocket).
+  - Solución: El servidor Reverb no tiene TLS. En echo.tsx:
+    forceTLS: false, enabledTransports: ["ws"].
+
+================================================================================
+FIN DE LA GUÍA
+================================================================================

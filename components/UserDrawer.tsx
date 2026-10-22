@@ -29,6 +29,8 @@ type UserInfo = {
   email?: string;
   rol?: string;
   avatarUrl?: string | null;
+  grupoNombre?: string;
+  ciudad?: string;
 };
 
 type Notification = {
@@ -157,11 +159,6 @@ export default function UserDrawer({
                 value={user?.telefono}
               />
               <InfoRow icon="mail-outline" label="Correo" value={user?.email} />
-              <InfoRow
-                icon="id-card-outline"
-                label="ID"
-                value={user?.userIdNum?.toString()}
-              />
             </View>
 
             {/* Notificaciones */}
@@ -179,7 +176,7 @@ export default function UserDrawer({
                 </View>
                 {onOpenNotifications && (
                   <Pressable onPress={onOpenNotifications}>
-                    <Text style={styles.link}>Ver todas</Text>
+                    <Text style={styles.link}></Text>
                   </Pressable>
                 )}
               </View>

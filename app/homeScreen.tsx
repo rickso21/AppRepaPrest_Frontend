@@ -1,13 +1,16 @@
-import { LiveKitRoom } from "@livekit/react-native";
+import { authService } from "@/services/auth/AuthService";
+import { AudioSession, LiveKitRoom } from "@livekit/react-native";
 import { useKeepAwake } from "expo-keep-awake";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+
 import {
   Alert,
   Animated,
   Dimensions,
   PanResponder,
-  Platform,
+  PermissionsAndroid,
+  Platform, // ✅ nuevo: para pedir permiso de micrófono en Android
   SafeAreaView,
   StyleSheet,
   Vibration,
@@ -19,31 +22,29 @@ import UserDrawer from "@/components/UserDrawer";
 import BottomZone from "@/components/home/BottomZone";
 import MapSection from "@/components/home/MapSection";
 import { GoogleMapViewRef } from "@/components/maps/GoogleMapView";
+import LkDebug from "@/components/monitoreo/Lkdebug";
 
 import { api } from "@/services/conector/api";
 import { SoundService } from "@/services/home/SoundService";
+import { userService, type PerfilPublico } from "@/services/user/userService";
 
-import { useLiveKitToken } from "@/hooks/home/useLiveKitToken";
-import { useLocationTracking } from "@/hooks/home/useLocationTracking";
-import { usePanic } from "@/hooks/home/usePanic";
-import { useRidersPolling } from "@/hooks/home/useRidersPolling";
 import { useUserData } from "@/hooks/home/useUserData";
+import { useLocationTracking } from "@/hooks/monitoreo/useLocationTracking";
+import { usePanic } from "@/hooks/monitoreo/usePanic";
+import { useRidersRealtime } from "@/hooks/monitoreo/useRidersRealtime";
+import { useLiveKitToken } from "@/services/monitoreo/useLiveKitToken";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const PANEL_EXPANDED = 200;
 const PANEL_COLLAPSED = 120;
-
-// Rango de arrastre
 const DRAG_RANGE = PANEL_EXPANDED - PANEL_COLLAPSED;
 
-type Props = { route?: { params?: any } };
-
-export default function HomeScreen({ route }: Props) {
+export default function HomeScreen() {
   const router = useRouter();
-  const raw = route?.params ?? {};
+  const params = useLocalSearchParams();
+  const raw = params ?? {};
 
-  //useUserData con callback de redirección al eliminar cuenta
   const user = useUserData(raw, {
     onAccountDisabled: () => {
       router.replace("/login");
@@ -53,7 +54,6 @@ export default function HomeScreen({ route }: Props) {
   const [conectado, setConectado] = useState(false);
   const [cargandoConexion, setCargandoConexion] = useState(false);
 
-  // Drawer + notificaciones
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [notifications] = useState([
     {
@@ -64,10 +64,67 @@ export default function HomeScreen({ route }: Props) {
       leida: false,
     },
   ]);
-  const noLeidas = notifications.filter((n) => !n.leida).length;
 
   useKeepAwake();
   const mapRef = useRef<GoogleMapViewRef | null>(null);
+
+  // ============================================================
+  // ✅ Iniciar sesión de audio (necesario para que LiveKit capture)
+  // ============================================================
+  useEffect(() => {
+    let start = async () => {
+      try {
+        await AudioSession.startAudioSession();
+        console.log("[AudioSession] started");
+      } catch (e: any) {
+        console.log("[AudioSession] start error:", e?.message);
+      }
+    };
+    start();
+    return () => {
+      AudioSession.stopAudioSession().catch(() => {});
+      console.log("[AudioSession] stopped");
+    };
+  }, []);
+
+  // ============================================================
+  // PERFIL COMPLEMENTARIO
+  // ============================================================
+  const [perfilApi, setPerfilApi] = useState<PerfilPublico | null>(null);
+  const [cargandoPerfil, setCargandoPerfil] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setRefreshKey((k) => k + 1);
+    }, []),
+  );
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!user.userIdNum) return;
+      setCargandoPerfil(true);
+      try {
+        const perfil = await userService.getUserById(user.userIdNum);
+        if (active && perfil) setPerfilApi(perfil);
+      } catch (e: any) {
+        console.log("[HomeScreen] getUserById error:", e?.message);
+      } finally {
+        if (active) setCargandoPerfil(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user.userIdNum, refreshKey]);
+
+  const grupoMostrar =
+    perfilApi?.grupo || user.grupoNombre || "Delivery Sobre Ruedas";
+  const avatarMostrar = perfilApi?.avatar_url || user.avatarUrl || null;
+  const ciudadMostrar = perfilApi?.ciudad || user.ciudad || "";
+  const telefonoMostrar = perfilApi?.telefono || user.telefono || "";
+  const emailMostrar = perfilApi?.email || user.email || "";
 
   // ============================================================
   // ANIMACIÓN DEL PANEL
@@ -78,9 +135,8 @@ export default function HomeScreen({ route }: Props) {
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gesture) => {
-        return Math.abs(gesture.dy) > Math.abs(gesture.dx);
-      },
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        Math.abs(gesture.dy) > Math.abs(gesture.dx),
       onPanResponderGrant: () => {
         translateY.setOffset(currentOffset.current);
         translateY.setValue(0);
@@ -93,15 +149,12 @@ export default function HomeScreen({ route }: Props) {
       },
       onPanResponderRelease: (_, gesture) => {
         translateY.flattenOffset();
-
         const shouldCollapse =
           gesture.vy > 0.4 ||
           (gesture.vy >= -0.4 &&
             currentOffset.current + gesture.dy > DRAG_RANGE / 2);
-
         const finalValue = shouldCollapse ? DRAG_RANGE : 0;
         currentOffset.current = finalValue;
-
         Animated.spring(translateY, {
           toValue: finalValue,
           useNativeDriver: true,
@@ -113,8 +166,8 @@ export default function HomeScreen({ route }: Props) {
   ).current;
 
   // ============================================================
-
-  const { livekitToken, livekitUrl, tokenRef } = useLiveKitToken(conectado);
+  const { livekitToken, livekitUrl, tokenRef, audioReady } =
+    useLiveKitToken(conectado);
 
   const { sinPermiso, ubicacionLista, iniciarMonitoreo, detenerMonitoreo } =
     useLocationTracking({ mapRef, tokenRef });
@@ -124,9 +177,10 @@ export default function HomeScreen({ route }: Props) {
     suprimirAlertasRef,
     alertasPanicoMostradasRef,
     cooldownPanicoRef,
-  } = useRidersPolling({
+  } = useRidersRealtime({
     conectado,
     userIdNum: user.userIdNum,
+    grupoId: user.grupoId,
     mapRef,
     tokenRef,
   });
@@ -140,8 +194,38 @@ export default function HomeScreen({ route }: Props) {
     cooldownPanicoRef,
   });
 
+  // ============================================================
+  // ✅ toggleConexion con solicitud de permiso de micrófono
+  // ============================================================
   const toggleConexion = useCallback(async (): Promise<boolean> => {
     if (cargandoConexion) return false;
+
+    // ✅ Pedir permiso de micrófono en Android antes de conectar
+    if (Platform.OS === "android") {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+          {
+            title: "Micrófono",
+            message:
+              "Necesitamos el micrófono para el monitoreo por voz del grupo.",
+            buttonPositive: "Permitir",
+            buttonNegative: "Cancelar",
+          },
+        );
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          Alert.alert(
+            "Permiso requerido",
+            "Activa el micrófono en los ajustes del sistema para usar el monitoreo.",
+          );
+          return false;
+        }
+      } catch (e: any) {
+        console.log("[HomeScreen] permission error:", e?.message);
+        return false;
+      }
+    }
+
     setCargandoConexion(true);
     const nuevoEstado = conectado ? "desconectado" : "conectado";
     try {
@@ -192,7 +276,6 @@ export default function HomeScreen({ route }: Props) {
     };
   }, [tokenRef]);
 
-  // Handlers del drawer
   const openDrawer = useCallback(() => setDrawerVisible(true), []);
   const closeDrawer = useCallback(() => setDrawerVisible(false), []);
 
@@ -206,28 +289,35 @@ export default function HomeScreen({ route }: Props) {
     }, 180);
   }, [router, user.nombreCompleto, closeDrawer]);
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
     closeDrawer();
-    // TODO: limpiar token + router.replace("/login")
-  }, [closeDrawer]);
+    try {
+      await authService.logout();
+    } catch (e: any) {
+      console.log("[HomeScreen] logout error:", e?.message);
+    }
+    router.replace("/login");
+  }, [closeDrawer, router]);
 
-  // NUEVO: eliminar cuenta
   const handleDisableAccount = useCallback(() => {
     closeDrawer();
     setTimeout(() => {
       user.handleInhabilitarCuenta();
     }, 250);
   }, [closeDrawer, user]);
+
   return (
     <LiveKitRoom
       serverUrl={livekitUrl ?? ""}
       token={livekitToken ?? ""}
-      connect={conectado && !!livekitToken && !!livekitUrl}
-      audio={true}
+      connect={conectado && audioReady && !!livekitToken && !!livekitUrl}
+      audio={true} // ✅ publica automáticamente el micrófono al conectar
       video={false}
       onConnected={() => console.log("[LiveKit] Conectado")}
       onDisconnected={() => console.log("[LiveKit] Desconectado")}
+      // ✅ requestPermissions eliminado (era inválido)
     >
+      <LkDebug />
       <SafeAreaView
         style={[
           styles.container,
@@ -236,8 +326,8 @@ export default function HomeScreen({ route }: Props) {
       >
         <AppHeader
           userName={user.nombreCompleto}
-          subtitle={user.grupoNombre || "Delivery Sobre Ruedas"}
-          avatarUrl={user.avatarUrl}
+          subtitle={grupoMostrar}
+          avatarUrl={avatarMostrar}
           onAvatarPress={openDrawer}
         />
 
@@ -291,17 +381,18 @@ export default function HomeScreen({ route }: Props) {
           />
         </Animated.View>
 
-        {/*UserDrawer con onDeleteAccount */}
         <UserDrawer
           visible={drawerVisible}
           onClose={closeDrawer}
           user={{
             nombreCompleto: user.nombreCompleto,
-            telefono: user.telefono,
+            telefono: telefonoMostrar,
             userIdNum: user.userIdNum,
-            email: user.email,
+            email: emailMostrar,
             rol: "conductor",
-            avatarUrl: user.avatarUrl,
+            avatarUrl: avatarMostrar,
+            grupoNombre: grupoMostrar,
+            ciudad: ciudadMostrar,
           }}
           notifications={notifications}
           onOpenProfile={goToPerfil}
@@ -316,16 +407,8 @@ export default function HomeScreen({ route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#000000",
-  },
-
-  mapContainer: {
-    flex: 1,
-    overflow: "hidden",
-  },
-
+  container: { flex: 1, backgroundColor: "#000000" },
+  mapContainer: { flex: 1, overflow: "hidden" },
   panel: {
     position: "absolute",
     left: 0,
@@ -335,14 +418,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#16161F",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-
     shadowColor: "#000",
     shadowOpacity: 0.45,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: -4 },
     elevation: 18,
   },
-
   handleContainer: {
     width: "100%",
     height: 30,
@@ -350,11 +431,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingTop: 8,
   },
-
-  handle: {
-    width: 46,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: "#940000",
-  },
+  handle: { width: 46, height: 5, borderRadius: 3, backgroundColor: "#940000" },
 });
